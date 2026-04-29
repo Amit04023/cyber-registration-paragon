@@ -7,12 +7,9 @@ app.use(express.urlencoded({ extended: true }));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: {
-    rejectUnauthorized: false
-  }
+  ssl: { rejectUnauthorized: false }
 });
 
-// יצירת טבלה
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
   id SERIAL PRIMARY KEY,
@@ -33,8 +30,8 @@ app.get("/", (req, res) => {
       <style>
         body { font-family: Arial; background:#f4f4f4; }
         .box { max-width:400px; margin:60px auto; background:white; padding:25px; border-radius:12px; }
-        input, button { width:100%; padding:12px; margin:8px 0; }
-        button { background:#111; color:white; border:0; cursor:pointer; }
+        input, button { width:100%; padding:12px; margin:8px 0; box-sizing:border-box; }
+        button { background:#111; color:white; border:0; cursor:pointer; border-radius:6px; }
       </style>
     </head>
     <body>
@@ -71,12 +68,15 @@ app.post("/register", async (req, res) => {
 });
 
 app.get("/admin", async (req, res) => {
-  if (req.query.password !== process.env.ADMIN_PASSWORD) {
+  if (
+    req.query.user !== process.env.ADMIN_USER ||
+    req.query.password !== process.env.ADMIN_PASSWORD
+  ) {
     return res.status(401).send(`
       <html dir="rtl">
       <meta charset="UTF-8">
       <h2>אין הרשאה</h2>
-      <p>כניסה: /admin?password=YOUR_PASSWORD</p>
+      <p>כניסה עם שם משתמש וסיסמה נדרשת.</p>
       </html>
     `);
   }
@@ -130,23 +130,6 @@ app.get("/admin", async (req, res) => {
   </body>
   </html>`;
 
-  res.send(html);
-});
-
-  let html = `<html dir="rtl"><meta charset="UTF-8"><h2>נרשמים</h2><table border="1" cellpadding="8">
-  <tr><th>שם</th><th>חברה</th><th>טלפון</th><th>אימייל</th><th>תאריך</th></tr>`;
-
-  result.rows.forEach(r => {
-    html += `<tr>
-      <td>${r.full_name}</td>
-      <td>${r.company || ""}</td>
-      <td>${r.phone || ""}</td>
-      <td>${r.email}</td>
-      <td>${r.created_at}</td>
-    </tr>`;
-  });
-
-  html += `</table></html>`;
   res.send(html);
 });
 
