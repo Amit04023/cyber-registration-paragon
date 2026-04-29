@@ -85,11 +85,11 @@ h1 {
   width: 430px;
   max-width: 92vw;
   margin: 70px auto;
-  background: white;
-  color: #111;
+  background: linear-gradient(135deg, #ff8c00, #ff5e00);
+  color: white;
   padding: 30px;
   border-radius: 18px;
-  box-shadow: 0 0 40px rgba(0,255,136,0.45);
+  box-shadow: 0 0 40px rgba(255,140,0,0.6);
   text-align: center;
 }
 
@@ -133,4 +133,42 @@ small {
 @keyframes pulse {
   0%, 100% { transform: scale(1); opacity: 1; }
   50% { transform: scale(1.06); opacity: 0.75; }
+}
+.center-box {
+  max-width: 400px;
+  margin: 100px auto;
+  background: white;
+  padding: 30px;
+  border-radius: 15px;
+  text-align: center;
+  box-shadow: 0 0 25px rgba(0,255,136,0.3);
+  color: black;
+}
+
+.btn {
+  display: inline-block;
+  margin-top: 15px;
+  padding: 10px 20px;
+  background: #111;
+  color: white;
+  text-decoration: none;
+  border-radius: 8px;
+}
+.form-box input {
+  background: rgba(255,255,255,0.95);
+  color: black;
+  border: none;
+}
+
+.form-box input::placeholder {
+  color: #666;
+}
+
+.form-box button {
+  background: black;
+  color: white;
+}
+
+.form-box button:hover {
+  background: #222;
 }
