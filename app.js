@@ -1,4 +1,5 @@
 const express = require("express");
+const nodemailer = require("nodemailer");
 const { Pool } = require("pg");
 const session = require("express-session");
 const path = require("path");
@@ -21,7 +22,14 @@ const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-
+//  Mail
+const transporter = require("nodemailer").createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.EMAIL_USER,
+    pass: process.env.EMAIL_PASS
+  }
+});
 // יצירת טבלה
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
@@ -48,6 +56,24 @@ app.post("/register", async (req, res) => {
      VALUES ($1, $2, $3, $4)`,
     [full_name, company, phone, email]
   );
+
+  // 📧 שליחת מייל
+  try {
+    await transporter.sendMail({
+      from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
+      to: email,
+      subject: "אישור הרשמה להרצאת סייבר",
+      html: `
+        <div dir="rtl" style="font-family:Arial">
+          <h2>שלום ${full_name},</h2>
+          <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
+          <p>נתראה בהרצאה!</p>
+        </div>
+      `
+    });
+  } catch (err) {
+    console.log("Email error:", err);
+  }
 
   res.sendFile(path.join(__dirname, "views", "success.html"));
 });
