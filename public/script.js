@@ -41,13 +41,13 @@ window.addEventListener("resize", () => {
 });
 
 const lines = [
-  "> Initializing security scan...",
-  "> Checking browser fingerprint...",
-  "> Detecting suspicious access pattern...",
-  "> Scanning open exposure points...",
-  "> Risk level: HIGH",
-  "> Awareness simulation loaded.",
-  "> Redirecting to cyber lecture registration..."
+  "> מתחיל סריקת אבטחה...",
+  "> בודק טביעת דפדפן...",
+  "> מזהה פעילות חשודה...",
+  "> סורק נקודות חשיפה...",
+  "> רמת סיכון: גבוהה ⚠️",
+  "> מומלץ להירשם להרצאת הסייבר של Paragon",
+  "> מעביר אותך להרשמה..."
 ];
 
 const terminal = document.getElementById("terminalText");
