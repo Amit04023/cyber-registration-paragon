@@ -1,9 +1,17 @@
 const express = require("express");
 const { Pool } = require("pg");
+const session = require("express-session");
 
 const app = express();
 
 app.use(express.urlencoded({ extended: true }));
+
+app.use(session({
+  secret: process.env.SESSION_SECRET || "change-this-secret",
+  resave: false,
+  saveUninitialized: false,
+  cookie: { secure: false }
+}));
 
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
@@ -67,18 +75,53 @@ app.post("/register", async (req, res) => {
   `);
 });
 
-app.get("/admin", async (req, res) => {
-  if (
-    req.query.user !== process.env.ADMIN_USER ||
-    req.query.password !== process.env.ADMIN_PASSWORD
-  ) {
-    return res.status(401).send(`
-      <html dir="rtl">
+app.get("/login", (req, res) => {
+  res.send(`
+    <html dir="rtl" lang="he">
+    <head>
       <meta charset="UTF-8">
-      <h2>אין הרשאה</h2>
-      <p>כניסה עם שם משתמש וסיסמה נדרשת.</p>
-      </html>
-    `);
+      <title>כניסת אדמין</title>
+      <style>
+        body { font-family: Arial; background:#f4f4f4; }
+        .box { max-width:400px; margin:80px auto; background:white; padding:25px; border-radius:12px; }
+        input, button { width:100%; padding:12px; margin:8px 0; box-sizing:border-box; }
+        button { background:#111; color:white; border:0; cursor:pointer; border-radius:6px; }
+      </style>
+    </head>
+    <body>
+      <div class="box">
+        <h2>כניסת אדמין</h2>
+        <form method="POST" action="/login">
+          <input name="user" placeholder="שם משתמש" required>
+          <input name="password" type="password" placeholder="סיסמה" required>
+          <button type="submit">כניסה</button>
+        </form>
+      </div>
+    </body>
+    </html>
+  `);
+});
+
+app.post("/login", (req, res) => {
+  const { user, password } = req.body;
+
+  if (user === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
+    req.session.loggedIn = true;
+    return res.redirect("/admin");
+  }
+
+  res.status(401).send(`
+    <html dir="rtl">
+    <meta charset="UTF-8">
+    <h2>פרטים שגויים</h2>
+    <a href="/login">נסה שוב</a>
+    </html>
+  `);
+});
+
+app.get("/admin", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.redirect("/login");
   }
 
   const result = await pool.query(
@@ -96,10 +139,12 @@ app.get("/admin", async (req, res) => {
       table { width:100%; border-collapse:collapse; }
       th, td { border:1px solid #ddd; padding:10px; text-align:right; }
       th { background:#111; color:white; }
+      a { display:inline-block; margin-bottom:15px; }
     </style>
   </head>
   <body>
     <div class="box">
+      <a href="/logout">יציאה</a>
       <h2>נרשמים להרצאה</h2>
       <p>סה״כ נרשמים: ${result.rows.length}</p>
       <table>
@@ -131,6 +176,12 @@ app.get("/admin", async (req, res) => {
   </html>`;
 
   res.send(html);
+});
+
+app.get("/logout", (req, res) => {
+  req.session.destroy(() => {
+    res.redirect("/login");
+  });
 });
 
 const port = process.env.PORT || 3000;
