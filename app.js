@@ -1,10 +1,13 @@
 const express = require("express");
 const { Pool } = require("pg");
 const session = require("express-session");
+const path = require("path");
 
 const app = express();
 
+// 📦 Middleware
 app.use(express.urlencoded({ extended: true }));
+app.use(express.static("public")); // 👈 קבצי עיצוב ו־JS
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "change-this-secret",
@@ -13,11 +16,13 @@ app.use(session({
   cookie: { secure: false }
 }));
 
+// 🗄️ Database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
 
+// יצירת טבלה
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
   id SERIAL PRIMARY KEY,
@@ -29,35 +34,12 @@ CREATE TABLE IF NOT EXISTS registrations (
 )
 `);
 
+// 🏠 דף ראשי
 app.get("/", (req, res) => {
-  res.send(`
-    <html dir="rtl" lang="he">
-    <head>
-      <meta charset="UTF-8">
-      <title>הרשמה להרצאת סייבר</title>
-      <style>
-        body { font-family: Arial; background:#f4f4f4; }
-        .box { max-width:400px; margin:60px auto; background:white; padding:25px; border-radius:12px; }
-        input, button { width:100%; padding:12px; margin:8px 0; box-sizing:border-box; }
-        button { background:#111; color:white; border:0; cursor:pointer; border-radius:6px; }
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <h2>הרשמה להרצאת מודעות סייבר</h2>
-        <form method="POST" action="/register">
-          <input name="full_name" placeholder="שם מלא" required>
-          <input name="company" placeholder="חברה / מחלקה">
-          <input name="phone" placeholder="טלפון">
-          <input name="email" type="email" placeholder="אימייל" required>
-          <button type="submit">אישור הגעה</button>
-        </form>
-      </div>
-    </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "views", "index.html"));
 });
 
+// 📝 הרשמה
 app.post("/register", async (req, res) => {
   const { full_name, company, phone, email } = req.body;
 
@@ -67,58 +49,30 @@ app.post("/register", async (req, res) => {
     [full_name, company, phone, email]
   );
 
-  res.send(`
-    <html dir="rtl">
-    <meta charset="UTF-8">
-    <h2>תודה, ההרשמה נקלטה ✅</h2>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "views", "success.html"));
 });
 
+// 🔐 LOGIN PAGE
 app.get("/login", (req, res) => {
-  res.send(`
-    <html dir="rtl" lang="he">
-    <head>
-      <meta charset="UTF-8">
-      <title>כניסת אדמין</title>
-      <style>
-        body { font-family: Arial; background:#f4f4f4; }
-        .box { max-width:400px; margin:80px auto; background:white; padding:25px; border-radius:12px; }
-        input, button { width:100%; padding:12px; margin:8px 0; box-sizing:border-box; }
-        button { background:#111; color:white; border:0; cursor:pointer; border-radius:6px; }
-      </style>
-    </head>
-    <body>
-      <div class="box">
-        <h2>כניסת אדמין</h2>
-        <form method="POST" action="/login">
-          <input name="user" placeholder="שם משתמש" required>
-          <input name="password" type="password" placeholder="סיסמה" required>
-          <button type="submit">כניסה</button>
-        </form>
-      </div>
-    </body>
-    </html>
-  `);
+  res.sendFile(path.join(__dirname, "views", "login.html"));
 });
 
+// 🔐 LOGIN ACTION
 app.post("/login", (req, res) => {
   const { user, password } = req.body;
 
-  if (user === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
+  if (
+    user === process.env.ADMIN_USER &&
+    password === process.env.ADMIN_PASSWORD
+  ) {
     req.session.loggedIn = true;
     return res.redirect("/admin");
   }
 
-  res.status(401).send(`
-    <html dir="rtl">
-    <meta charset="UTF-8">
-    <h2>פרטים שגויים</h2>
-    <a href="/login">נסה שוב</a>
-    </html>
-  `);
+  res.send("פרטים שגויים");
 });
 
+// 🔒 ADMIN
 app.get("/admin", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
@@ -128,25 +82,36 @@ app.get("/admin", async (req, res) => {
     `SELECT * FROM registrations ORDER BY created_at DESC`
   );
 
-  let html = `
-  <html dir="rtl" lang="he">
-  <head>
-    <meta charset="UTF-8">
-    <title>מערכת אדמין</title>
-    <style>
-      body { font-family: Arial; background:#f4f4f4; padding:30px; }
-      .box { background:white; padding:25px; border-radius:12px; }
-      table { width:100%; border-collapse:collapse; }
-      th, td { border:1px solid #ddd; padding:10px; text-align:right; }
-      th { background:#111; color:white; }
-      a { display:inline-block; margin-bottom:15px; }
-    </style>
-  </head>
-  <body>
-    <div class="box">
+  let rows = "";
+
+  result.rows.forEach(r => {
+    rows += `
+      <tr>
+        <td>${r.full_name}</td>
+        <td>${r.company || ""}</td>
+        <td>${r.phone || ""}</td>
+        <td>${r.email}</td>
+        <td>${r.created_at}</td>
+        <td>
+          <form method="POST" action="/delete">
+            <input type="hidden" name="id" value="${r.id}">
+            <button onclick="return confirm('אתה בטוח?')" style="background:red;color:white;">מחק</button>
+          </form>
+        </td>
+      </tr>
+    `;
+  });
+
+  res.send(`
+    <html dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <link rel="stylesheet" href="/admin.css">
+    </head>
+    <body>
+      <h2>מערכת אדמין</h2>
       <a href="/logout">יציאה</a>
-      <h2>נרשמים להרצאה</h2>
-      <p>סה״כ נרשמים: ${result.rows.length}</p>
+
       <table>
         <tr>
           <th>שם</th>
@@ -154,38 +119,41 @@ app.get("/admin", async (req, res) => {
           <th>טלפון</th>
           <th>אימייל</th>
           <th>תאריך</th>
+          <th>פעולות</th>
         </tr>
-  `;
-
-  result.rows.forEach(r => {
-    html += `
-      <tr>
-        <td>${r.full_name}</td>
-        <td>${r.company || ""}</td>
-        <td>${r.phone || ""}</td>
-        <td>${r.email}</td>
-        <td>${r.created_at}</td>
-      </tr>
-    `;
-  });
-
-  html += `
+        ${rows}
       </table>
-    </div>
-  </body>
-  </html>`;
-
-  res.send(html);
+    </body>
+    </html>
+  `);
 });
 
+// ❌ DELETE
+app.post("/delete", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.redirect("/login");
+  }
+
+  const { id } = req.body;
+
+  await pool.query(
+    "DELETE FROM registrations WHERE id = $1",
+    [id]
+  );
+
+  res.redirect("/admin");
+});
+
+// 🚪 LOGOUT
 app.get("/logout", (req, res) => {
   req.session.destroy(() => {
     res.redirect("/login");
   });
 });
 
+// 🚀 START SERVER
 const port = process.env.PORT || 3000;
 
 app.listen(port, "0.0.0.0", () => {
-  console.log(`Server running on port ${port}`);
+  console.log("Server running on port " + port);
 });

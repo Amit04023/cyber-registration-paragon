@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="he">
+<head>
+  <meta charset="UTF-8">
+  <title>Paragon Cyber Awareness</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+
+<canvas id="matrix"></canvas>
+
+<div class="intro" id="intro">
+  <img src="/logo.png" class="logo" alt="Paragon Logo">
+
+  <h1>זוהתה פעילות חשודה</h1>
+
+  <div class="scanner">
+    <div class="scan-line"></div>
+  </div>
+
+  <div class="terminal">
+    <div id="terminalText"></div>
+  </div>
+</div>
+
+<div class="form-box" id="formBox">
+  <img src="/logo.png" class="form-logo" alt="Paragon Logo">
+
+  <h2>זו הייתה סימולציית סייבר של Paragon</h2>
+  <p>
+    בדיוק כך נראים ניסיונות פישינג והתחזות.
+    הירשם להרצאת מודעות סייבר לעסקים.
+  </p>
+
+  <form method="POST" action="/register">
+    <input name="full_name" placeholder="שם מלא" required>
+    <input name="company" placeholder="חברה / מחלקה">
+    <input name="phone" placeholder="טלפון">
+    <input name="email" type="email" placeholder="אימייל" required>
+    <button type="submit">אישור הגעה להרצאה</button>
+  </form>
+
+  <small>לא נאספות סיסמאות או פרטים רגישים.</small>
+</div>
+
+<script src="/script.js"></script>
+</body>
+</html>
