@@ -63,14 +63,33 @@ app.post("/register", async (req, res) => {
       from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
-      html: `
-        <div dir="rtl" style="font-family:Arial">
-          <h2>שלום ${full_name},</h2>
-          <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
-          <p>נתראה בהרצאה!</p>
-        </div>
-      `
-    });
+  html: `
+  <div dir="rtl" style="font-family:Arial; line-height:1.6">
+    <h2>שלום ${full_name},</h2>
+
+    <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
+
+    <p><strong>פרטי ההרצאה:</strong></p>
+
+    <ul style="padding-right:20px">
+      <li>📅 תאריך: X</li>
+      <li>⏰ שעה: X</li>
+      <li>💻 פלטפורמה: Zoom</li>
+    </ul>
+
+    <p>
+      קישור לזום יישלח אליך סמוך למועד ההרצאה.
+    </p>
+
+    <br>
+
+    <p>
+      נתראה בהרצאה,<br>
+      משפחת Paragon 
+    </p>
+ </div>
+`
+});
   } catch (err) {
     console.log("Email error:", err);
   }
@@ -104,9 +123,7 @@ app.get("/admin", async (req, res) => {
     return res.redirect("/login");
   }
 
-  const result = await pool.query(
-    `SELECT * FROM registrations ORDER BY created_at DESC`
-  );
+  const result = await pool.query(`SELECT * FROM registrations ORDER BY created_at DESC`);
 
   let rows = "";
 
