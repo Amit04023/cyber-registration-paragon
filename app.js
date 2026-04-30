@@ -50,35 +50,27 @@ app.use(session({
 }));
 
 // 👇 מעקב קליקים לפי token
-app.use((req, res, next) => {
+app.use(async (req, res, next) => {
   const token = req.query.u;
 
   if (token && req.method === "GET") {
     const emp = findEmployeeByToken(token);
-    const db = loadTracking();
 
-    if (!db[token]) {
-      db[token] = {
-        token,
-        name: emp ? emp.name : "Unknown",
-        email: emp ? emp.email : "Unknown",
-        clicked: false,
-        registered: false,
-        clicks: []
-      };
+    try {
+      await pool.query(
+        `INSERT INTO clicks (token, employee_name, employee_email, ip, user_agent)
+         VALUES ($1, $2, $3, $4, $5)`,
+        [
+          token,
+          emp ? emp.name : "Unknown",
+          emp ? emp.email : "Unknown",
+          req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+          req.headers["user-agent"]
+        ]
+      );
+    } catch (err) {
+      console.log("Click tracking error:", err);
     }
-
-    db[token].clicked = true;
-    db[token].name = emp ? emp.name : db[token].name;
-    db[token].email = emp ? emp.email : db[token].email;
-
-    db[token].clicks.push({
-      time: new Date().toISOString(),
-      ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
-      ua: req.headers["user-agent"]
-    });
-
-    saveTracking(db);
   }
 
   next();
@@ -108,7 +100,7 @@ const sendTransporter = nodemailer.createTransport({
   }
 });
 
-// יצירת טבלה
+// יצירת טבלה - הרשמות
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
   id SERIAL PRIMARY KEY,
@@ -118,6 +110,20 @@ CREATE TABLE IF NOT EXISTS registrations (
   email TEXT NOT NULL,
   token TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+)
+`);
+
+// יצירת טבלה - קליקים
+pool.query(`
+CREATE TABLE IF NOT EXISTS clicks (
+  id SERIAL PRIMARY KEY,
+  token TEXT,
+  employee_name TEXT,
+  employee_email TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  registered BOOLEAN DEFAULT FALSE
 )
 `);
 
@@ -136,29 +142,12 @@ app.post("/register", async (req, res) => {
     [full_name, company, phone, email, token || null]
   );
 
-  if (token) {
-    const db = loadTracking();
-
-    if (!db[token]) {
-      const emp = findEmployeeByToken(token);
-
-      db[token] = {
-        token,
-        name: emp ? emp.name : "Unknown",
-        email: emp ? emp.email : "Unknown",
-        clicked: true,
-        registered: false,
-        clicks: []
-      };
-    }
-
-    db[token].registered = true;
-    db[token].registeredAt = new Date().toISOString();
-    db[token].registeredName = full_name;
-    db[token].registeredEmail = email;
-
-    saveTracking(db);
-  }
+if (token) {
+  await pool.query(
+    `UPDATE clicks SET registered = true WHERE token = $1`,
+    [token]
+  );
+}
 
   try {
     await registerTransporter.sendMail({
