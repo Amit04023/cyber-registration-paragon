@@ -27,12 +27,12 @@
   <img src="/logo1.png" class="form-logo" alt="Paragon Logo">
 
   <h2>זו הייתה סימולציית סייבר של Paragon</h2>
+
   <p>
     בדיוק כך נראים ניסיונות פישינג והתחזות.
     הירשם להרצאת מודעות סייבר.
   </p>
 
-  <!-- 👇 חשוב מאוד - הוספנו token -->
   <form method="POST" action="/register">
     <input type="hidden" name="token" id="token">
 
@@ -47,17 +47,18 @@
   <small>לא נאספות סיסמאות או פרטים רגישים.</small>
 </div>
 
-<!-- 👇 לוקח את ה־token מהלינק -->
 <script>
   const params = new URLSearchParams(window.location.search);
-  const token = params.get("u") || "";
+  const tokenInput = document.getElementById("token");
 
-  document.getElementById("token").value = token;
+  if (tokenInput) {
+    tokenInput.value = params.get("u") || "";
+  }
 
-  // אפשר גם לראות בקונסול לבדיקה
-  console.log("User token:", token);
+  console.log("User token:", params.get("u") || "");
 </script>
 
 <script src="/script.js"></script>
+
 </body>
 </html>

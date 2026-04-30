@@ -94,6 +94,11 @@ async function initDb() {
     )
   `);
 
+  await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS token TEXT`);
+  await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS ip TEXT`);
+  await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS user_agent TEXT`);
+  await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS simulation_result TEXT DEFAULT 'submitted'`);
+
   await pool.query(`
     CREATE TABLE IF NOT EXISTS clicks (
       id SERIAL PRIMARY KEY,
