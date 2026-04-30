@@ -22,7 +22,7 @@ const pool = new Pool({
 // =======================
 const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
-  { name: "nir masika", email: "nir@barneagroup.co.il" }
+  //{ name: "nir masika", email: "nir@barneagroup.co.il" }
 ];
 
 function createToken(email) {
@@ -340,18 +340,23 @@ app.get("/admin", async (req, res) => {
       ORDER BY created_at DESC
     `);
 
-    const clickedNotRegistered = await pool.query(`
-      SELECT DISTINCT ON (token)
-        token,
-        employee_name,
-        employee_email,
-        ip,
-        user_agent,
-        clicked_at
-      FROM clicks
-      WHERE registered = false
-      ORDER BY token, clicked_at DESC
-    `);
+const clickedNotRegistered = await pool.query(`
+  SELECT
+    c.token,
+    c.employee_name,
+    c.employee_email,
+    MAX(c.clicked_at) AS clicked_at,
+    COUNT(*) AS click_count,
+    MAX(c.ip) AS ip
+  FROM clicks c
+  WHERE NOT EXISTS (
+    SELECT 1
+    FROM registrations r
+    WHERE r.token = c.token
+  )
+  GROUP BY c.token, c.employee_name, c.employee_email
+  ORDER BY clicked_at DESC
+`);
 
     let registrationRows = "";
 
@@ -377,16 +382,17 @@ app.get("/admin", async (req, res) => {
 
     let clickRows = "";
 
-    clickedNotRegistered.rows.forEach(v => {
-      clickRows += `
-        <tr>
-          <td>${v.employee_name || ""}</td>
-          <td>${v.employee_email || ""}</td>
-          <td>${v.clicked_at || ""}</td>
-          <td>${v.ip || ""}</td>
-        </tr>
-      `;
-    });
+   clickedNotRegistered.rows.forEach(v => {
+  clickRows += `
+    <tr>
+      <td>${v.employee_name || ""}</td>
+      <td>${v.employee_email || ""}</td>
+      <td>${v.clicked_at || ""}</td>
+      <td>${v.ip || ""}</td>
+      <td>${v.click_count || 0}</td>
+    </tr>
+  `;
+});
 
     res.send(`
       <html dir="rtl">
@@ -422,10 +428,10 @@ app.get("/admin", async (req, res) => {
         <h3>לחצו על הקישור אבל לא נרשמו</h3>
         <table border="1" cellpadding="8">
           <tr>
-            <th>שם עובד</th>
-            <th>מייל</th>
-            <th>זמן לחיצה אחרון</th>
-            <th>IP</th>
+         <th>שם עובד</th>
+	  <th>מייל</th>
+	  <th>זמן לחיצה אחרון</th>
+	  <th>IP</th>
           </tr>
           ${clickRows}
         </table>
