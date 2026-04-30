@@ -93,10 +93,12 @@ const registerTransporter = nodemailer.createTransport({
 
 // 📤 מייל שליחת קישורים לעובדים
 const sendTransporter = nodemailer.createTransport({
-  service: "gmail",
+  host: "smtp.zoho.com",
+  port: 465,
+  secure: true,
   auth: {
-    user: process.env.SEND_EMAIL_USER || process.env.REGISTER_EMAIL_USER,
-    pass: process.env.SEND_EMAIL_PASS || process.env.REGISTER_EMAIL_PASS
+    user: process.env.SEND_EMAIL_USER,
+    pass: process.env.SEND_EMAIL_PASS
   }
 });
 
@@ -109,6 +111,9 @@ CREATE TABLE IF NOT EXISTS registrations (
   phone TEXT,
   email TEXT NOT NULL,
   token TEXT,
+  ip TEXT,
+  user_agent TEXT,
+  simulation_result TEXT DEFAULT 'submitted',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 `);
@@ -136,11 +141,21 @@ app.get("/", (req, res) => {
 app.post("/register", async (req, res) => {
   const { full_name, company, phone, email, token } = req.body;
 
-  await pool.query(
-    `INSERT INTO registrations (full_name, company, phone, email, token)
-     VALUES ($1, $2, $3, $4, $5)`,
-    [full_name, company, phone, email, token || null]
-  );
+await pool.query(
+  `INSERT INTO registrations 
+   (full_name, company, phone, email, token, ip, user_agent, simulation_result)
+   VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+  [
+    full_name,
+    company,
+    phone,
+    email,
+    token || null,
+    req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+    req.headers["user-agent"],
+    "submitted"
+  ]
+);
 
 if (token) {
   await pool.query(
@@ -184,18 +199,29 @@ async function sendTrackingEmails() {
     const link = `${BASE_URL}/?u=${token}`;
 
     await sendTransporter.sendMail({
-      from: "Paragon IT <" + (process.env.SEND_EMAIL_USER || process.env.REGISTER_EMAIL_USER) + ">",
+     from: "Paragon IT <" + process.env.SEND_EMAIL_USER + ">",
       to: emp.email,
-      subject: "הרשמה להרצאת סייבר",
-      html: `
-        <div dir="rtl" style="font-family:Arial; line-height:1.6">
-          <h2>שלום ${emp.name},</h2>
-          <p>נא להיכנס לקישור הבא להרשמה:</p>
-          <p><a href="${link}">${link}</a></p>
-          <br>
-          <p>Paragon IT</p>
-        </div>
-      `
+subject: "השקת אתר חדש – בדיקה קצרה",
+html: `
+  <div dir="rtl" style="font-family:Arial; line-height:1.6">
+    <h2>שלום ${emp.name},</h2>
+
+    <p>
+      העלינו גרסה חדשה לאתר ונשמח לעזרתך בבדיקה קצרה.
+    </p>
+
+    <p>
+      הפעולה אורכת פחות מדקה:
+    </p>
+
+    <p>
+      👉 <a href="${link}" style="color:#2563eb;">כניסה לאתר</a>
+    </p>
+
+    <br>
+    <p>Paragon IT</p>
+  </div>
+`
     });
 
     console.log(`Sent to ${emp.name} - ${emp.email} - ${link}`);
@@ -275,6 +301,8 @@ app.get("/admin", async (req, res) => {
         <td>${r.phone || ""}</td>
         <td>${r.email}</td>
         <td>${r.created_at}</td>
+        <td>${r.ip || ""}</td>
+        <td>מילא פרטים</td>
         <td>
           <form method="POST" action="/delete">
             <input type="hidden" name="id" value="${r.id}">
@@ -323,6 +351,8 @@ app.get("/admin", async (req, res) => {
           <th>אימייל</th>
           <th>תאריך</th>
           <th>פעולות</th>
+          <th>IP</th>
+          <th>סטטוס</th>
         </tr>
         ${rows}
       </table>
