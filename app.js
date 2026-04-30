@@ -252,7 +252,18 @@ app.get("/admin", async (req, res) => {
   }
 
   const result = await pool.query(`SELECT * FROM registrations ORDER BY created_at DESC`);
-  const tracking = loadTracking();
+  const clickedNotRegistered = await pool.query(`
+  SELECT DISTINCT ON (token)
+    token,
+    employee_name,
+    employee_email,
+    ip,
+    user_agent,
+    clicked_at
+  FROM clicks
+  WHERE registered = false
+  ORDER BY token, clicked_at DESC
+`);
 
   let rows = "";
 
@@ -276,22 +287,16 @@ app.get("/admin", async (req, res) => {
 
   let clickedNotRegisteredRows = "";
 
-  Object.values(tracking)
-    .filter(v => v.clicked && !v.registered)
-    .forEach(v => {
-      const lastClick = v.clicks && v.clicks.length
-        ? v.clicks[v.clicks.length - 1]
-        : {};
-
-      clickedNotRegisteredRows += `
-        <tr>
-          <td>${v.name || ""}</td>
-          <td>${v.email || ""}</td>
-          <td>${lastClick.time || ""}</td>
-          <td>${lastClick.ip || ""}</td>
-        </tr>
-      `;
-    });
+ clickedNotRegistered.rows.forEach(v => {
+  clickedNotRegisteredRows += `
+    <tr>
+      <td>${v.employee_name || ""}</td>
+      <td>${v.employee_email || ""}</td>
+      <td>${v.clicked_at || ""}</td>
+      <td>${v.ip || ""}</td>
+    </tr>
+  `;
+});
 
   res.send(`
     <html dir="rtl">
