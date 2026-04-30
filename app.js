@@ -234,27 +234,36 @@ async function sendTrackingEmails() {
     await mailTransporter.sendMail({
       from: `"Paragon IT" <${process.env.REGISTER_EMAIL_USER}>`,
       to: emp.email,
-      subject: "השקת אתר חדש – בדיקה קצרה",
-      html: `
-        <div dir="rtl" style="font-family:Arial; line-height:1.6">
-          <h2>שלום ${emp.name},</h2>
+subject: "השקת אתר חדש – נשמח לפידבק",
+html: `
+  <div dir="rtl" style="font-family:Arial; line-height:1.8; color:#111">
+    <h2>שלום ${emp.name},</h2>
 
-          <p>
-            העלינו גרסה חדשה לאתר ונשמח לעזרתך בבדיקה קצרה.
-          </p>
+    <p>
+      העלינו אתר חדש ונשמח אם תוכל להקדיש רגע ולעבור עליו.
+    </p>
 
-          <p>
-            הפעולה אורכת פחות מדקה:
-          </p>
+    <p>
+      נשמח מאוד לקבל את חוות דעתך והערות לשיפור.
+    </p>
 
-          <p>
-            👉 <a href="${link}" style="color:#2563eb;">כניסה לאתר</a>
-          </p>
+    <p>
+      👉 <a href="${link}" style="color:#2563eb; font-weight:bold;">
+      https://www.paragon.co.il/
+      </a>
+    </p>
 
-          <br>
-          <p>Paragon IT</p>
-        </div>
-      `
+    <br>
+
+    <p>
+      ניתן לשלוח פידבק במייל לעמרי או לניר.
+    </p>
+
+    <br>
+
+    <p>תודה רבה 🙏<br>Paragon IT</p>
+  </div>
+`
     });
 
     console.log("Tracking email sent:", emp.email, link);
