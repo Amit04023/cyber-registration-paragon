@@ -9,9 +9,6 @@ const app = express();
 
 const BASE_URL = "https://cyber-registration-paragon.onrender.com";
 
-const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
-const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
-
 // =======================
 // DATABASE
 // =======================
@@ -297,7 +294,7 @@ app.post("/login", (req, res) => {
 // =======================
 // SEND MAILS BUTTON
 // =======================
-app.get("/admin/send-mails", async (req, res) => {
+app.post("/admin/send-mails", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
   }
@@ -425,9 +422,11 @@ app.get("/admin", async (req, res) => {
     <div class="top-bar">
       <a href="/logout" class="logout-btn">🚪 יציאה</a>
 
-      <form method="GET" action="/admin/send-mails">
-        <button type="submit">📤 שלח מיילים לעובדים</button>
-      </form>
+	  <form method="POST" action="/admin/send-mails">
+	  <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
+	    📤 שלח מיילים לעובדים
+	  </button>
+	</form>
     </div>
 
     <h3>נרשמו</h3>
