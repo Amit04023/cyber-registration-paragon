@@ -193,7 +193,7 @@ app.post("/register", async (req, res) => {
     }
 
     await mailTransporter.sendMail({
-      from: `"Paragon Cyber" <${process.env.REGISTER_EMAIL_USER}>`,
+      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
       html: `
@@ -208,7 +208,7 @@ app.post("/register", async (req, res) => {
           </ul>
           <p>קישור לזום יישלח סמוך למועד ההרצאה.</p>
           <br>
-          <p>נתראה בהרצאה,<br>Paragon Cyber</p>
+          <p>נתראה בהרצאה,<br>Paragon group</p>
         </div>
       `
     });
@@ -232,15 +232,15 @@ async function sendTrackingEmails() {
     const link = `${BASE_URL}/?u=${token}`;
 
     await mailTransporter.sendMail({
-      from: `"Paragon IT" <${process.env.REGISTER_EMAIL_USER}>`,
+      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
       to: emp.email,
-subject: "השקת אתר חדש – נשמח לפידבק",
+subject: "השקת אתר חדש  נשמח לפידבק",
 html: `
   <div dir="rtl" style="font-family:Arial; line-height:1.8; color:#111">
     <h2>שלום ${emp.name},</h2>
 
     <p>
-      העלינו אתר חדש ונשמח אם תוכל להקדיש רגע ולעבור עליו.
+      העלינו אתר חדש ונשמח אם תוכלו להקדיש רגע ולעבור עליו.
     </p>
 
     <p>
@@ -261,7 +261,7 @@ html: `
 
     <br>
 
-    <p>תודה רבה 🙏<br>Paragon IT</p>
+    <p>תודה רבה 🙏<br>Paragon group</p>
   </div>
 `
     });
