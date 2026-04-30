@@ -9,6 +9,9 @@ const app = express();
 
 const BASE_URL = "https://cyber-registration-paragon.onrender.com";
 
+const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
+const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
+
 // =======================
 // DATABASE
 // =======================
@@ -340,23 +343,26 @@ app.get("/admin", async (req, res) => {
       ORDER BY created_at DESC
     `);
 
-const clickedNotRegistered = await pool.query(`
-  SELECT
-    c.token,
-    c.employee_name,
-    c.employee_email,
-    MAX(c.clicked_at) AS clicked_at,
-    COUNT(*) AS click_count,
-    MAX(c.ip) AS ip
-  FROM clicks c
-  WHERE NOT EXISTS (
-    SELECT 1
-    FROM registrations r
-    WHERE r.token = c.token
-  )
-  GROUP BY c.token, c.employee_name, c.employee_email
-  ORDER BY clicked_at DESC
-`);
+    const clickedNotRegistered = await pool.query(`
+      SELECT
+        c.token,
+        c.employee_name,
+        c.employee_email,
+        MAX(c.clicked_at) AS clicked_at,
+        COUNT(*) AS click_count,
+        MAX(c.ip) AS ip
+      FROM clicks c
+      WHERE NOT EXISTS (
+        SELECT 1
+        FROM registrations r
+        WHERE r.token = c.token
+      )
+      GROUP BY c.token, c.employee_name, c.employee_email
+      ORDER BY clicked_at DESC
+    `);
+
+    const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
+    const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
 
     let registrationRows = "";
 
@@ -394,50 +400,82 @@ const clickedNotRegistered = await pool.query(`
   `;
 });
 
-    res.send(`
-      <html dir="rtl">
-      <head>
-        <meta charset="UTF-8">
-        <link rel="stylesheet" href="/admin.css">
-      </head>
-      <body>
-        <h2>מערכת אדמין</h2>
+  res.send(`
+  <html dir="rtl">
+  <head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="/admin.css">
+  </head>
+  <body>
 
-        <a href="/logout">יציאה</a>
-        |
+    <h2>מערכת אדמין</h2>
 
-        <form method="GET" action="/admin/send-mails" style="display:inline;">
-          <button type="submit">📤 שלח מיילים לעובדים</button>
-        </form>
+    <div class="stats">
+      <div class="card">
+        <div class="big-number">${totalClicks.rows[0].count}</div>
+        <div class="label">👆 לחיצות</div>
+      </div>
 
-        <h3>נרשמו</h3>
-        <table border="1" cellpadding="8">
-          <tr>
-            <th>שם</th>
-            <th>חברה</th>
-            <th>טלפון</th>
-            <th>אימייל</th>
-            <th>תאריך</th>
-            <th>IP</th>
-            <th>סטטוס</th>
-            <th>פעולות</th>
-          </tr>
-          ${registrationRows}
-        </table>
+      <div class="card">
+        <div class="big-number">${totalRegs.rows[0].count}</div>
+        <div class="label">✅ נרשמים</div>
+      </div>
+    </div>
 
-        <h3>לחצו על הקישור אבל לא נרשמו</h3>
-        <table border="1" cellpadding="8">
-          <tr>
-         <th>שם עובד</th>
-	  <th>מייל</th>
-	  <th>זמן לחיצה אחרון</th>
-	  <th>IP</th>
-          </tr>
-          ${clickRows}
-        </table>
-      </body>
-      </html>
-    `);
+    <div class="top-bar">
+      <a href="/logout" class="logout-btn">🚪 יציאה</a>
+
+      <form method="GET" action="/admin/send-mails">
+        <button type="submit">📤 שלח מיילים לעובדים</button>
+      </form>
+    </div>
+
+    <h3>נרשמו</h3>
+
+    <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
+
+    <table border="1" cellpadding="8">
+      <tr>
+        <th>שם</th>
+        <th>חברה</th>
+        <th>טלפון</th>
+        <th>אימייל</th>
+        <th>תאריך</th>
+        <th>IP</th>
+        <th>סטטוס</th>
+        <th>פעולות</th>
+      </tr>
+      ${registrationRows}
+    </table>
+
+    <h3>לחצו על הקישור אבל לא נרשמו</h3>
+
+    <table border="1" cellpadding="8">
+      <tr>
+        <th>שם עובד</th>
+        <th>מייל</th>
+        <th>זמן לחיצה אחרון</th>
+        <th>IP</th>
+        <th>כמות לחיצות</th>
+      </tr>
+      ${clickRows}
+    </table>
+
+    <script>
+      function searchTable() {
+        const input = document.getElementById("search").value.toLowerCase();
+        const rows = document.querySelectorAll("table:first-of-type tr");
+
+        rows.forEach((row, i) => {
+          if (i === 0) return;
+          row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+        });
+      }
+    </script>
+
+  </body>
+  </html>
+`);
 
   } catch (err) {
     console.log("ADMIN ERROR:", err);
