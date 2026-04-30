@@ -9,6 +9,7 @@ const crypto = require("crypto");
 const app = express();
 
 const TRACK_FILE = path.join(__dirname, "tracking.json");
+const BASE_URL = "https://cyber-registration-paragon.onrender.com";
 
 function loadTracking() {
   if (!fs.existsSync(TRACK_FILE)) return {};
@@ -27,11 +28,9 @@ function createToken(email) {
     .slice(0, 12);
 }
 
-// 👇 פה תכניס את כל העובדים
 const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
-  { name: "nir masika", email: "nir@barneagroup.co.il" },
-
+  { name: "nir masika", email: "nir@barneagroup.co.il" }
 ];
 
 function findEmployeeByToken(token) {
@@ -50,7 +49,7 @@ app.use(session({
   cookie: { secure: false }
 }));
 
-// 👇 מעקב קליקים
+// 👇 מעקב קליקים לפי token
 app.use((req, res, next) => {
   const token = req.query.u;
 
@@ -91,12 +90,21 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
-// 📧 Mail
-const transporter = nodemailer.createTransport({
+// 📩 מייל אישור הרשמה
+const registerTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.EMAIL_USER,
-    pass: process.env.EMAIL_PASS
+    user: process.env.REGISTER_EMAIL_USER,
+    pass: process.env.REGISTER_EMAIL_PASS
+  }
+});
+
+// 📤 מייל שליחת קישורים לעובדים
+const sendTransporter = nodemailer.createTransport({
+  service: "gmail",
+  auth: {
+    user: process.env.SEND_EMAIL_USER,
+    pass: process.env.SEND_EMAIL_PASS
   }
 });
 
@@ -132,8 +140,12 @@ app.post("/register", async (req, res) => {
     const db = loadTracking();
 
     if (!db[token]) {
+      const emp = findEmployeeByToken(token);
+
       db[token] = {
         token,
+        name: emp ? emp.name : "Unknown",
+        email: emp ? emp.email : "Unknown",
         clicked: true,
         registered: false,
         clicks: []
@@ -149,8 +161,8 @@ app.post("/register", async (req, res) => {
   }
 
   try {
-    await transporter.sendMail({
-      from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
+    await registerTransporter.sendMail({
+      from: "Paragon Cyber <" + process.env.REGISTER_EMAIL_USER + ">",
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
       html: `
@@ -170,7 +182,7 @@ app.post("/register", async (req, res) => {
       `
     });
   } catch (err) {
-    console.log("Email error:", err);
+    console.log("Register email error:", err);
   }
 
   res.sendFile(path.join(__dirname, "views", "success.html"));
@@ -178,14 +190,12 @@ app.post("/register", async (req, res) => {
 
 // 📤 שליחת מייל ייחודי לכל עובד
 async function sendTrackingEmails() {
-  const baseUrl = "https://cyber-registration-paragon.onrender.com";
-
   for (const emp of employees) {
     const token = createToken(emp.email);
-    const link = `${baseUrl}/?u=${token}`;
+    const link = `${BASE_URL}/?u=${token}`;
 
-    await transporter.sendMail({
-      from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
+    await sendTransporter.sendMail({
+      from: "Paragon IT <" + process.env.SEND_EMAIL_USER + ">",
       to: emp.email,
       subject: "הרשמה להרצאת סייבר",
       html: `
@@ -223,7 +233,7 @@ app.post("/login", (req, res) => {
   res.send("פרטים שגויים");
 });
 
-// שליחה לכולם - רק אדמין מחובר
+// 📤 שליחה לכולם
 app.get("/admin/send-mails", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
@@ -231,9 +241,17 @@ app.get("/admin/send-mails", async (req, res) => {
 
   try {
     await sendTrackingEmails();
-    res.send("המיילים נשלחו בהצלחה");
+    res.send(`
+      <html dir="rtl">
+      <head><meta charset="UTF-8"></head>
+      <body>
+        <h2>המיילים נשלחו בהצלחה ✅</h2>
+        <a href="/admin">חזרה לאדמין</a>
+      </body>
+      </html>
+    `);
   } catch (err) {
-    console.error(err);
+    console.error("Send mails error:", err);
     res.status(500).send("שגיאה בשליחת מיילים");
   }
 });
@@ -297,9 +315,10 @@ app.get("/admin", async (req, res) => {
 
       <a href="/logout">יציאה</a>
       |
+
       <form method="GET" action="/admin/send-mails" style="display:inline;">
-  <button type="submit">📤 שלח מיילים לעובדים</button>
-</form>
+        <button type="submit">📤 שלח מיילים לעובדים</button>
+      </form>
 
       <h3>נרשמו</h3>
       <table>
