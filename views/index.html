@@ -32,16 +32,31 @@
     הירשם להרצאת מודעות סייבר.
   </p>
 
+  <!-- 👇 חשוב מאוד - הוספנו token -->
   <form method="POST" action="/register">
+    <input type="hidden" name="token" id="token">
+
     <input name="full_name" placeholder="שם מלא" required>
     <input name="company" placeholder="מחלקה">
     <input name="phone" placeholder="טלפון">
     <input name="email" type="email" placeholder="אימייל" required>
+
     <button type="submit">אישור הגעה להרצאה</button>
   </form>
 
   <small>לא נאספות סיסמאות או פרטים רגישים.</small>
 </div>
+
+<!-- 👇 לוקח את ה־token מהלינק -->
+<script>
+  const params = new URLSearchParams(window.location.search);
+  const token = params.get("u") || "";
+
+  document.getElementById("token").value = token;
+
+  // אפשר גם לראות בקונסול לבדיקה
+  console.log("User token:", token);
+</script>
 
 <script src="/script.js"></script>
 </body>

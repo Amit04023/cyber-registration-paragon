@@ -2,13 +2,46 @@ const express = require("express");
 const nodemailer = require("nodemailer");
 const { Pool } = require("pg");
 const session = require("express-session");
+const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 const app = express();
 
+const TRACK_FILE = path.join(__dirname, "tracking.json");
+
+function loadTracking() {
+  if (!fs.existsSync(TRACK_FILE)) return {};
+  return JSON.parse(fs.readFileSync(TRACK_FILE, "utf8"));
+}
+
+function saveTracking(data) {
+  fs.writeFileSync(TRACK_FILE, JSON.stringify(data, null, 2));
+}
+
+function createToken(email) {
+  return crypto
+    .createHash("sha256")
+    .update(email.toLowerCase())
+    .digest("hex")
+    .slice(0, 12);
+}
+
+// 👇 פה תכניס את כל העובדים
+const employees = [
+  { name: "amit masika", email: "amit@barneagroup.co.il" },
+  { name: "nir masika", email: "nir@barneagroup.co.il" },
+
+];
+
+function findEmployeeByToken(token) {
+  return employees.find(emp => createToken(emp.email) === token);
+}
+
 // 📦 Middleware
 app.use(express.urlencoded({ extended: true }));
-app.use(express.static("public")); // 👈 קבצי עיצוב ו־JS
+app.use(express.json());
+app.use(express.static("public"));
 
 app.use(session({
   secret: process.env.SESSION_SECRET || "change-this-secret",
@@ -17,19 +50,56 @@ app.use(session({
   cookie: { secure: false }
 }));
 
+// 👇 מעקב קליקים
+app.use((req, res, next) => {
+  const token = req.query.u;
+
+  if (token && req.method === "GET") {
+    const emp = findEmployeeByToken(token);
+    const db = loadTracking();
+
+    if (!db[token]) {
+      db[token] = {
+        token,
+        name: emp ? emp.name : "Unknown",
+        email: emp ? emp.email : "Unknown",
+        clicked: false,
+        registered: false,
+        clicks: []
+      };
+    }
+
+    db[token].clicked = true;
+    db[token].name = emp ? emp.name : db[token].name;
+    db[token].email = emp ? emp.email : db[token].email;
+
+    db[token].clicks.push({
+      time: new Date().toISOString(),
+      ip: req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+      ua: req.headers["user-agent"]
+    });
+
+    saveTracking(db);
+  }
+
+  next();
+});
+
 // 🗄️ Database
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-//  Mail
-const transporter = require("nodemailer").createTransport({
+
+// 📧 Mail
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.EMAIL_USER,
     pass: process.env.EMAIL_PASS
   }
 });
+
 // יצירת טבלה
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
@@ -38,6 +108,7 @@ CREATE TABLE IF NOT EXISTS registrations (
   company TEXT,
   phone TEXT,
   email TEXT NOT NULL,
+  token TEXT,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 )
 `);
@@ -49,53 +120,88 @@ app.get("/", (req, res) => {
 
 // 📝 הרשמה
 app.post("/register", async (req, res) => {
-  const { full_name, company, phone, email } = req.body;
+  const { full_name, company, phone, email, token } = req.body;
 
   await pool.query(
-    `INSERT INTO registrations (full_name, company, phone, email)
-     VALUES ($1, $2, $3, $4)`,
-    [full_name, company, phone, email]
+    `INSERT INTO registrations (full_name, company, phone, email, token)
+     VALUES ($1, $2, $3, $4, $5)`,
+    [full_name, company, phone, email, token || null]
   );
 
-  // 📧 שליחת מייל
+  if (token) {
+    const db = loadTracking();
+
+    if (!db[token]) {
+      db[token] = {
+        token,
+        clicked: true,
+        registered: false,
+        clicks: []
+      };
+    }
+
+    db[token].registered = true;
+    db[token].registeredAt = new Date().toISOString();
+    db[token].registeredName = full_name;
+    db[token].registeredEmail = email;
+
+    saveTracking(db);
+  }
+
   try {
     await transporter.sendMail({
       from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
-  html: `
-  <div dir="rtl" style="font-family:Arial; line-height:1.6">
-    <h2>שלום ${full_name},</h2>
-
-    <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
-
-    <p><strong>פרטי ההרצאה:</strong></p>
-
-    <ul style="padding-right:20px">
-      <li>📅 תאריך: X</li>
-      <li>⏰ שעה: X</li>
-      <li>💻 פלטפורמה: Zoom</li>
-    </ul>
-
-    <p>
-      קישור לזום יישלח אליך סמוך למועד ההרצאה.
-    </p>
-
-    <br>
-
-    <p>
-      נתראה בהרצאה,<br>
-      משפחת Paragon 
-    </p>
- </div>
-`
-});
+      html: `
+        <div dir="rtl" style="font-family:Arial; line-height:1.6">
+          <h2>שלום ${full_name},</h2>
+          <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
+          <p><strong>פרטי ההרצאה:</strong></p>
+          <ul style="padding-right:20px">
+            <li>📅 תאריך: X</li>
+            <li>⏰ שעה: X</li>
+            <li>💻 פלטפורמה: Zoom</li>
+          </ul>
+          <p>קישור לזום יישלח אליך סמוך למועד ההרצאה.</p>
+          <br>
+          <p>נתראה בהרצאה,<br>משפחת Paragon</p>
+        </div>
+      `
+    });
   } catch (err) {
     console.log("Email error:", err);
   }
 
   res.sendFile(path.join(__dirname, "views", "success.html"));
 });
+
+// 📤 שליחת מייל ייחודי לכל עובד
+async function sendTrackingEmails() {
+  const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+
+  for (const emp of employees) {
+    const token = createToken(emp.email);
+    const link = `${baseUrl}/?u=${token}`;
+
+    await transporter.sendMail({
+      from: "Paragon Cyber <" + process.env.EMAIL_USER + ">",
+      to: emp.email,
+      subject: "הרשמה להרצאת סייבר",
+      html: `
+        <div dir="rtl" style="font-family:Arial; line-height:1.6">
+          <h2>שלום ${emp.name},</h2>
+          <p>נא להיכנס לקישור הבא להרשמה:</p>
+          <p><a href="${link}">${link}</a></p>
+          <br>
+          <p>Paragon IT</p>
+        </div>
+      `
+    });
+
+    console.log(`Sent to ${emp.name} - ${emp.email} - ${link}`);
+  }
+}
 
 // 🔐 LOGIN PAGE
 app.get("/login", (req, res) => {
@@ -117,6 +223,21 @@ app.post("/login", (req, res) => {
   res.send("פרטים שגויים");
 });
 
+// שליחה לכולם - רק אדמין מחובר
+app.get("/admin/send-mails", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.redirect("/login");
+  }
+
+  try {
+    await sendTrackingEmails();
+    res.send("המיילים נשלחו בהצלחה");
+  } catch (err) {
+    console.error(err);
+    res.status(500).send("שגיאה בשליחת מיילים");
+  }
+});
+
 // 🔒 ADMIN
 app.get("/admin", async (req, res) => {
   if (!req.session.loggedIn) {
@@ -124,6 +245,7 @@ app.get("/admin", async (req, res) => {
   }
 
   const result = await pool.query(`SELECT * FROM registrations ORDER BY created_at DESC`);
+  const tracking = loadTracking();
 
   let rows = "";
 
@@ -145,6 +267,25 @@ app.get("/admin", async (req, res) => {
     `;
   });
 
+  let clickedNotRegisteredRows = "";
+
+  Object.values(tracking)
+    .filter(v => v.clicked && !v.registered)
+    .forEach(v => {
+      const lastClick = v.clicks && v.clicks.length
+        ? v.clicks[v.clicks.length - 1]
+        : {};
+
+      clickedNotRegisteredRows += `
+        <tr>
+          <td>${v.name || ""}</td>
+          <td>${v.email || ""}</td>
+          <td>${lastClick.time || ""}</td>
+          <td>${lastClick.ip || ""}</td>
+        </tr>
+      `;
+    });
+
   res.send(`
     <html dir="rtl">
     <head>
@@ -153,8 +294,14 @@ app.get("/admin", async (req, res) => {
     </head>
     <body>
       <h2>מערכת אדמין</h2>
-      <a href="/logout">יציאה</a>
 
+      <a href="/logout">יציאה</a>
+      |
+      <form method="GET" action="/admin/send-mails" style="display:inline;">
+  <button type="submit">📤 שלח מיילים לעובדים</button>
+</form>
+
+      <h3>נרשמו</h3>
       <table>
         <tr>
           <th>שם</th>
@@ -165,6 +312,17 @@ app.get("/admin", async (req, res) => {
           <th>פעולות</th>
         </tr>
         ${rows}
+      </table>
+
+      <h3>לחצו על הקישור אבל לא נרשמו</h3>
+      <table>
+        <tr>
+          <th>שם עובד</th>
+          <th>מייל</th>
+          <th>זמן לחיצה אחרון</th>
+          <th>IP</th>
+        </tr>
+        ${clickedNotRegisteredRows}
       </table>
     </body>
     </html>
