@@ -29,7 +29,7 @@ function createToken(email) {
 
 // 👇 פה תכניס את כל העובדים
 const employees = [
-  { name: "amit masika", email: "amit@barneagroup.co.il" },
+  { name: "amit masika", email: "amitomcar@gmail.com" },
   { name: "nir masika", email: "nir@barneagroup.co.il" },
 
 ];
