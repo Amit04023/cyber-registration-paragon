@@ -95,8 +95,8 @@ const registerTransporter = nodemailer.createTransport({
 const sendTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
-    user: process.env.SEND_EMAIL_USER,
-    pass: process.env.SEND_EMAIL_PASS
+    user: process.env.SEND_EMAIL_USER || process.env.REGISTER_EMAIL_USER,
+    pass: process.env.SEND_EMAIL_PASS || process.env.REGISTER_EMAIL_PASS
   }
 });
 
@@ -184,7 +184,7 @@ async function sendTrackingEmails() {
     const link = `${BASE_URL}/?u=${token}`;
 
     await sendTransporter.sendMail({
-      from: "Paragon IT <" + process.env.SEND_EMAIL_USER + ">",
+      from: "Paragon IT <" + (process.env.SEND_EMAIL_USER || process.env.REGISTER_EMAIL_USER) + ">",
       to: emp.email,
       subject: "הרשמה להרצאת סייבר",
       html: `
