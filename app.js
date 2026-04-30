@@ -42,7 +42,12 @@ function findEmployeeByToken(token) {
 // =======================
 // MAIL - Gmail בלבד
 // =======================
-const mailTransporter = nodemailer.createTransport({
+// =======================
+// MAIL
+// =======================
+
+// מייל אישורי הרשמה
+const registerTransporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.REGISTER_EMAIL_USER,
@@ -50,14 +55,36 @@ const mailTransporter = nodemailer.createTransport({
   }
 });
 
+// מייל שליחת קישורים לעובדים
+const sendTransporter = nodemailer.createTransport({
+  host: "smtp.zoho.com",
+  port: 465,
+  secure: true,
+  auth: {
+    user: process.env.SEND_EMAIL_USER,
+    pass: process.env.SEND_EMAIL_PASS
+  }
+});
+
 console.log("REGISTER_EMAIL_USER:", process.env.REGISTER_EMAIL_USER);
 console.log("REGISTER_EMAIL_PASS exists:", !!process.env.REGISTER_EMAIL_PASS);
 
-mailTransporter.verify((err) => {
+console.log("SEND_EMAIL_USER:", process.env.SEND_EMAIL_USER);
+console.log("SEND_EMAIL_PASS exists:", !!process.env.SEND_EMAIL_PASS);
+
+registerTransporter.verify((err) => {
   if (err) {
-    console.log("SMTP ERROR:", err);
+    console.log("REGISTER SMTP ERROR:", err);
   } else {
-    console.log("SMTP READY ✅");
+    console.log("REGISTER SMTP READY ✅");
+  }
+});
+
+sendTransporter.verify((err) => {
+  if (err) {
+    console.log("SEND SMTP ERROR:", err);
+  } else {
+    console.log("SEND SMTP READY ✅");
   }
 });
 
@@ -194,11 +221,11 @@ app.post("/register", async (req, res) => {
       );
     }
 
-    await mailTransporter.sendMail({
-      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
-      to: email,
-      subject: "אישור הרשמה להרצאת סייבר",
-      html: `
+	await registerTransporter.sendMail({
+	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
+	  to: email,
+	  subject: "אישור הרשמה להרצאת סייבר",
+	  html: `
         <div dir="rtl" style="font-family:Arial; line-height:1.6">
           <h2>שלום ${full_name},</h2>
           <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
@@ -233,11 +260,11 @@ async function sendTrackingEmails() {
     const token = createToken(emp.email);
     const link = `${BASE_URL}/?u=${token}`;
 
-    await mailTransporter.sendMail({
-      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
-      to: emp.email,
-subject: "השקת אתר חדש  נשמח לפידבק",
-html: `
+	await sendTransporter.sendMail({
+	  from: `"Paragon group" <${process.env.SEND_EMAIL_USER}>`,
+	  to: emp.email,
+	  subject: "השקת אתר חדש נשמח לפידבק",
+	  html: `
   <div dir="rtl" style="font-family:Arial; line-height:1.8; color:#111">
     <h2>שלום ${emp.name},</h2>
 
