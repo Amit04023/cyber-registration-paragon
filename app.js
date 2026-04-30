@@ -178,7 +178,7 @@ app.post("/register", async (req, res) => {
 
 // 📤 שליחת מייל ייחודי לכל עובד
 async function sendTrackingEmails() {
-  const baseUrl = process.env.BASE_URL || "http://localhost:3000";
+  const baseUrl = "https://cyber-registration-paragon.onrender.com";
 
   for (const emp of employees) {
     const token = createToken(emp.email);
