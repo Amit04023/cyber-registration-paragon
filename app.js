@@ -102,6 +102,18 @@ const sendTransporter = nodemailer.createTransport({
   }
 });
 
+
+
+
+console.log("REGISTER_EMAIL_USER:", process.env.REGISTER_EMAIL_USER);
+console.log("REGISTER_EMAIL_PASS exists:", !!process.env.REGISTER_EMAIL_PASS);
+console.log("SEND_EMAIL_USER:", process.env.SEND_EMAIL_USER);
+console.log("SEND_EMAIL_PASS exists:", !!process.env.SEND_EMAIL_PASS);
+
+
+
+
+
 // יצירת טבלה - הרשמות
 pool.query(`
 CREATE TABLE IF NOT EXISTS registrations (
