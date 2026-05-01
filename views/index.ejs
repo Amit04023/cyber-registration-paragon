@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+  <meta charset="UTF-8">
+  <title>Security Awareness</title>
+  <style>
+    * { box-sizing: border-box; }
+
+    body {
+      margin: 0;
+      height: 100vh;
+      overflow: hidden;
+      font-family: Arial, sans-serif;
+      background: #05070b;
+      color: #e5e7eb;
+    }
+
+    .grid {
+      position: fixed;
+      inset: 0;
+      background-image:
+        linear-gradient(rgba(0,255,170,0.05) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,170,0.05) 1px, transparent 1px);
+      background-size: 45px 45px;
+      animation: moveGrid 18s linear infinite;
+    }
+
+    @keyframes moveGrid {
+      from { transform: translateY(0); }
+      to { transform: translateY(45px); }
+    }
+
+    .glow {
+      position: fixed;
+      inset: 0;
+      background:
+        radial-gradient(circle at 20% 20%, rgba(0,255,170,0.16), transparent 30%),
+        radial-gradient(circle at 80% 80%, rgba(0,120,255,0.14), transparent 35%);
+    }
+
+    .wrap {
+      position: relative;
+      z-index: 2;
+      height: 100vh;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      padding: 24px;
+    }
+
+    .card {
+      width: 760px;
+      max-width: 95%;
+      background: rgba(8, 13, 22, 0.9);
+      border: 1px solid rgba(0,255,170,0.25);
+      border-radius: 18px;
+      padding: 34px;
+      box-shadow: 0 0 45px rgba(0,255,170,0.12);
+    }
+
+    .logo {
+      width: 90px;
+      margin-bottom: 18px;
+    }
+
+    .badge {
+      display: inline-block;
+      padding: 7px 12px;
+      border: 1px solid rgba(0,255,170,0.35);
+      border-radius: 999px;
+      color: #00ffaa;
+      font-size: 13px;
+      margin-bottom: 18px;
+    }
+
+    h1 {
+      margin: 0 0 14px;
+      font-size: 32px;
+      color: #fff;
+    }
+
+    #typed {
+      min-height: 210px;
+      white-space: pre-line;
+      line-height: 1.9;
+      font-size: 18px;
+      color: #cbd5e1;
+    }
+
+    .btn {
+      display: none;
+      margin-top: 25px;
+      width: 100%;
+      padding: 15px;
+      border: none;
+      border-radius: 12px;
+      background: #00d084;
+      color: #00110a;
+      font-size: 17px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .btn:hover {
+      background: #00b873;
+    }
+
+    .note {
+      margin-top: 18px;
+      color: #94a3b8;
+      font-size: 13px;
+    }
+  </style>
+</head>
+
+<body>
+
+<div class="grid"></div>
+<div class="glow"></div>
+
+<div class="wrap">
+  <div class="card">
+
+    <img src="/logo1.png" class="logo" alt="logo">
+
+    <div class="badge">Security Awareness Simulation</div>
+
+    <h1>שלום <%= name %></h1>
+
+    <div id="typed"></div>
+
+    <button id="btn" class="btn" onclick="goToRegister()">
+      הבנתי, המשך להרשמה להרצאת מודעות סייבר
+    </button>
+
+    <div class="note">
+      זהו תרגיל מודעות בלבד. לא נאספו סיסמאות או פרטים רגישים.
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const message = `
+הלחיצה על הקישור זוהתה.
+
+זה בדיוק הרגע שבו בארגונים אמיתיים מתרחשות רוב טעויות האבטחה:
+קישור שנראה מוכר.
+מסמך שנראה רגיל.
+הודעה שנראית תמימה.
+
+המטרה של הסימולציה היא להזכיר:
+לא פותחים קישורים בלי לבדוק מקור.
+לא מזינים פרטים בלי לוודא כתובת אתר.
+לא סומכים על שם או לוגו בלבד.
+
+זו הייתה סימולציית מודעות סייבר של Paragon.
+`;
+
+  const typed = document.getElementById("typed");
+  const btn = document.getElementById("btn");
+
+  let i = 0;
+
+  function typeText() {
+    if (i < message.length) {
+      typed.textContent += message.charAt(i);
+      i++;
+      setTimeout(typeText, 32);
+    } else {
+      btn.style.display = "block";
+    }
+  }
+
+  function goToRegister() {
+    window.location.href = "/register-page?u=<%= token %>";
+  }
+
+  typeText();
+</script>
+
+</body>
+</html>

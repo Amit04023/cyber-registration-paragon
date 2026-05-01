@@ -6,6 +6,8 @@ const path = require("path");
 const crypto = require("crypto");
 
 const app = express();
+app.set("view engine", "ejs");
+app.set("views", path.join(__dirname, "views"));
 
 const BASE_URL = "https://cyber-registration-paragon.onrender.com";
 
@@ -183,9 +185,15 @@ app.use(async (req, res, next) => {
 // =======================
 // HOME
 // =======================
-app.get("/", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "index.html"));
-});
+	app.get("/", (req, res) => {
+	  const token = req.query.u || "";
+	  const emp = findEmployeeByToken(token);
+
+	  res.render("index", {
+	    name: emp ? emp.name : "משתמש",
+	    token
+	  });
+	});
 
 // =======================
 // REGISTER
