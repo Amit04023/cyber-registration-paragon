@@ -516,7 +516,7 @@ app.get("/admin", async (req, res) => {
   </head>
   <body>
 
-    <h2>מערכת אדמין</h2>
+    
 
     <div class="stats">
       <div class="card">
@@ -530,6 +530,8 @@ app.get("/admin", async (req, res) => {
       </div>
     </div>
 
+<h2>מערכת אדמין</h2>
+
     <div class="top-bar">
       <a href="/logout" class="logout-btn">🚪 יציאה</a>
 
@@ -538,6 +540,13 @@ app.get("/admin", async (req, res) => {
 	    📤 שלח מיילים לעובדים
 	  </button>
 	</form>
+
+    <form method="POST" action="/admin/reset-clicks"
+        onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
+    <button class="reset-clicks-btn">
+      איפוס קליקים בלבד ⚠️
+    </button>
+  </form>
     </div>
 
     <h3>נרשמו</h3>
@@ -590,6 +599,23 @@ app.get("/admin", async (req, res) => {
   } catch (err) {
     console.log("ADMIN ERROR:", err);
     res.status(500).send("שגיאה בטעינת אדמין");
+  }
+});
+
+//click reset
+
+app.post("/admin/reset-clicks", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.status(403).send("אין הרשאה");
+  }
+
+  try {
+    await pool.query("TRUNCATE clicks RESTART IDENTITY");
+    console.log("CLICKS RESET");
+    res.redirect("/admin");
+  } catch (err) {
+    console.log("RESET CLICKS ERROR:", err);
+    res.status(500).send("שגיאה באיפוס");
   }
 });
 
