@@ -41,9 +41,7 @@ function findEmployeeByToken(token) {
   return employees.find(emp => createToken(emp.email) === token);
 }
 
-// =======================
-// MAIL - Gmail בלבד
-// =======================
+
 // =======================
 // MAIL
 // =======================
@@ -271,94 +269,105 @@ async function sendTrackingEmails() {
 	  to: emp.email,
 	  subject: "עדכון: שינוי מדיניות ימי חופש",
     html: `
-    <div dir="rtl" style="font-family:Arial; line-height:1.6">
+    <div dir="rtl" style="font-family:Arial, sans-serif; color:#222;">
+    
+      <!-- לוגו / כותרת -->
+      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
+        <tr>
+          <td style="font-size:18px; font-weight:bold;">
+            Paragon Group
+          </td>
+        </tr>
+      </table>
+    
+      <!-- גוף -->
       <p>שלום ${emp.name},</p>
     
-      <p>מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.</p>
-      <p>נשמח אם תעבור על המסמך.</p>
+      <p>
+        מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.
+      </p>
     
-      <a href="${link}" style="
-        display:block;
-        width:260px;
-        min-height:120px;
-        border:1px solid #ddd;
-        background:#f3f3f3;
-        text-decoration:none;
-        color:#333;
-        position:relative;
-        padding:14px;
-        font-family:Arial;
+      <p>
+        נשמח אם תעבור על המסמך.
+      </p>
+    
+      <!-- כרטיס קובץ -->
+      <table cellpadding="0" cellspacing="0" border="0" style="
+        width:240px;
+        border:1px solid #d9d9d9;
+        background:#f5f5f5;
       ">
-        <div style="display:flex; align-items:flex-start; gap:10px;">
-          <div style="
-            background:#ef4444;
-            color:white;
-            font-size:12px;
-            font-weight:bold;
-            padding:3px 5px;
-            border-radius:2px;
-          ">PDF</div>
+        <tr>
+          <td style="padding:12px;">
     
-          <div>
-            <div style="font-size:15px; font-weight:bold;">
-              עדכון_מדיניות_ימי_חופש.pdf
-            </div>
-            <div style="font-size:12px; color:#888; margin-top:6px;">
-              182 KB
-            </div>
-          </div>
-        </div>
+            <table width="100%">
+              <tr>
+                <td width="35" valign="top">
+                  <div style="
+                    background:#d93025;
+                    color:white;
+                    font-size:11px;
+                    font-weight:bold;
+                    padding:4px;
+                    text-align:center;
+                  ">
+                    PDF
+                  </div>
+                </td>
     
-        <div style="margin-top:25px;">
-          <span style="
-            display:inline-block;
-            background:#8b8f96;
-            color:white;
-            padding:8px 10px;
-            border-radius:4px;
-            font-size:16px;
-            margin-left:6px;
-          ">⬇</span>
+                <td valign="top" style="padding-right:8px;">
+                  <div style="
+                    font-size:13px;
+                    font-weight:bold;
+                  ">
+                    עדכון_מדיניות_ימי_חופש.pdf
+                  </div>
     
-          <span style="
-            display:inline-block;
-            background:#8b8f96;
-            color:white;
-            padding:8px 10px;
-            border-radius:4px;
-            font-size:16px;
-          ">☁</span>
-        </div>
+                  <div style="
+                    font-size:11px;
+                    color:#777;
+                    margin-top:6px;
+                  ">
+                    182 KB
+                  </div>
+                </td>
+              </tr>
+            </table>
     
-        <div style="
-          position:absolute;
-          bottom:0;
-          left:0;
-          width:0;
-          height:0;
-          border-bottom:38px solid white;
-          border-right:38px solid transparent;
-        "></div>
+            <!-- כפתור פתיחה -->
+            <table width="100%" style="margin-top:10px;">
+              <tr>
+                <td>
+                  <a href="${link}" style="
+                    display:inline-block;
+                    background:#1a73e8;
+                    color:white;
+                    text-decoration:none;
+                    padding:6px 10px;
+                    font-size:12px;
+                    border-radius:4px;
+                  ">
+                    פתיחה
+                  </a>
+                </td>
+              </tr>
+            </table>
     
-        <div style="
-          position:absolute;
-          bottom:0;
-          left:0;
-          width:0;
-          height:0;
-          border-bottom:24px solid #ef4444;
-          border-right:24px solid transparent;
-        "></div>
-      </a>
+          </td>
+        </tr>
+      </table>
     
-      <p style="margin-top:12px; color:#666; font-size:12px;">
+      <!-- הערה -->
+      <p style="margin-top:15px; font-size:12px; color:#777;">
         לעיון בלבד.
       </p>
     
+      <!-- חתימה -->
       <p style="margin-top:20px;">
         תודה,<br>
-        Paragon group
+        Paragon Group
       </p>
+    
     </div>
     `
 	});
