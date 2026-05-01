@@ -261,42 +261,46 @@ async function sendTrackingEmails() {
 	await sendTransporter.sendMail({
 	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
 	  to: emp.email,
-	  subject: "השקת אתר חדש נשמח לפידבק",
+	  subject: "עדכון: שינוי מדיניות ימי חופש",
 	  html: `
-  <div dir="rtl" style="font-family:Arial; line-height:1.8; color:#111">
-    <h2>שלום ${emp.name},</h2>
+	  <div dir="rtl" style="font-family:Arial; line-height:1.6">
+	    <p>שלום ${emp.name},</p>
 
-    <p>
-      העלינו אתר חדש ונשמח אם תוכלו להקדיש רגע ולעבור עליו.
-    </p>
+	    <p>מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.</p>
+	    <p>נשמח אם תעבור על המסמך.</p>
 
-    <p>
-      נשמח מאוד לקבל את חוות דעתך והערות לשיפור.
-    </p>
+	    <a href="${link}" style="
+	      display:inline-block;
+	      border:1px solid #ddd;
+	      border-radius:10px;
+	      padding:12px 16px;
+	      text-decoration:none;
+	      color:#000;
+	      background:#fafafa;
+	    ">
+	      <div style="display:flex; align-items:center; gap:10px;">
+		<div style="font-size:22px;">📄</div>
+		<div>
+		  <div style="font-weight:bold;">עדכון_מדיניות_ימי_חופש.pdf</div>
+		  <div style="font-size:12px; color:#666;">PDF • לחץ לפתיחה</div>
+		</div>
+	      </div>
+	    </a>
 
-    <p>
-      👉 <a href="${link}" style="color:#2563eb; font-weight:bold;">
-      https://www.paragon.co.il/
-      </a>
-    </p>
+	    <p style="margin-top:12px; color:#666; font-size:12px;">
+	      לעיון בלבד.
+	    </p>
 
-    <br>
-
-    <p>
-      ניתן לשלוח פידבק במייל לעמרי או לניר.
-    </p>
-
-    <br>
-
-    <p>תודה רבה 🙏<br>Paragon group</p>
-  </div>
-`
-    });
-
-    console.log("Tracking email sent:", emp.email, link);
-  }
-}
-
+	    <p style="margin-top:20px;">
+	      תודה,<br>
+	      Paragon group
+	    </p>
+	  </div>
+	  `
+	});
+	    console.log("Tracking email sent:", emp.email, link);
+	  }
+	}
 // =======================
 // LOGIN
 // =======================
