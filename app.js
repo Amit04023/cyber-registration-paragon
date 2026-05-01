@@ -26,8 +26,8 @@ const pool = new Pool({
 const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
   { name: "nir masika", email: "nir@barneagroup.co.il" },
-  { name: "omri barnea", email: "omri@barneagroup.co.il"},
- // { name: "stav", email: "stavwo11@gmail.com"},
+  // { name: "omri barnea", email: "omri@barneagroup.co.il" },
+  // { name: "stav", email: "stavwo11@gmail.com" },
 ];
 
 function createToken(email) {
@@ -42,6 +42,10 @@ function findEmployeeByToken(token) {
   return employees.find(emp => createToken(emp.email) === token);
 }
 
+function getClientIp(req) {
+  return req.headers["x-forwarded-for"]?.split(",").pop().trim()
+    || req.socket.remoteAddress;
+}
 
 // =======================
 // MAIL
@@ -118,6 +122,7 @@ async function initDb() {
       id SERIAL PRIMARY KEY,
       full_name TEXT NOT NULL,
       company TEXT,
+      department TEXT,
       phone TEXT,
       email TEXT NOT NULL,
       token TEXT,
@@ -132,6 +137,7 @@ async function initDb() {
   await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS ip TEXT`);
   await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS user_agent TEXT`);
   await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS simulation_result TEXT DEFAULT 'submitted'`);
+  await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS department TEXT`);
 
   await pool.query(`
     CREATE TABLE IF NOT EXISTS clicks (
@@ -154,53 +160,36 @@ initDb().catch(err => {
 });
 
 // =======================
-// CLICK TRACKING
+// HOME + CLICK TRACKING
 // =======================
-app.use(async (req, res, next) => {
-  const token = req.query.u;
+app.get("/", async (req, res) => {
+  const token = req.query.u || "";
+  const emp = findEmployeeByToken(token);
 
-  if (token && req.method === "GET") {
-    const emp = findEmployeeByToken(token);
-
+  if (token) {
     try {
-      const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
-       || req.socket.remoteAddress;
-      await pool.query(
-        `
-        INSERT INTO clicks 
-        (token, employee_name, employee_email, ip, user_agent)
+      await pool.query(`
+        INSERT INTO clicks (token, employee_name, employee_email, ip, user_agent)
         VALUES ($1, $2, $3, $4, $5)
-        `,
-        [
-          token,
-          emp ? emp.name : "Unknown",
-          emp ? emp.email : "Unknown",
-          ip,
-          req.headers["user-agent"]
-        ]
-      );
+      `, [
+        token,
+        emp ? emp.name : "Unknown",
+        emp ? emp.email : "Unknown",
+        getClientIp(req),
+        req.headers["user-agent"]
+      ]);
 
       console.log("Click saved:", emp ? emp.email : token);
     } catch (err) {
-      console.log("CLICK TRACKING ERROR:", err);
+      console.log("CLICK ERROR:", err);
     }
   }
 
-  next();
+  res.render("index", {
+    name: emp ? emp.name : "משתמש",
+    token
+  });
 });
-
-// =======================
-// HOME
-// =======================
-	app.get("/", (req, res) => {
-	  const token = req.query.u || "";
-	  const emp = findEmployeeByToken(token);
-
-	  res.render("index", {
-	    name: emp ? emp.name : "משתמש",
-	    token
-	  });
-	});
 
 // =======================
 // REGISTER
@@ -209,26 +198,26 @@ app.post("/register", async (req, res) => {
   const { full_name, company, phone, email, token, department } = req.body;
 
   try {
-    const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
-      || req.socket.remoteAddress;
+    const ip = getClientIp(req);
+
     await pool.query(
-  `
-  INSERT INTO registrations 
-  (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
-  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-  `,
-  [
-    full_name,
-    company,
-    phone,
-    email,
-    token || null,
-    ip,
-    req.headers["user-agent"],
-    "submitted",
-    department
-  ]
-);
+      `
+      INSERT INTO registrations 
+      (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      `,
+      [
+        full_name,
+        company,
+        phone,
+        email,
+        token || null,
+        ip,
+        req.headers["user-agent"],
+        "submitted",
+        department
+      ]
+    );
 
     if (token) {
       await pool.query(
@@ -237,11 +226,11 @@ app.post("/register", async (req, res) => {
       );
     }
 
-	await registerTransporter.sendMail({
-	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
-	  to: email,
-	  subject: "אישור הרשמה להרצאת סייבר",
-	  html: `
+    await registerTransporter.sendMail({
+      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
+      to: email,
+      subject: "אישור הרשמה להרצאת סייבר",
+      html: `
         <div dir="rtl" style="font-family:Arial; line-height:1.6">
           <h2>שלום ${full_name},</h2>
           <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
@@ -276,139 +265,142 @@ async function sendTrackingEmails() {
     const token = createToken(emp.email);
     const link = `${BASE_URL}/?u=${token}`;
 
-	await sendTransporter.sendMail({
-	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
-	  to: emp.email,
-	  subject: "עדכון: שינוי מדיניות ימי חופש",
-    html: `
-    <div dir="rtl" style="font-family:Arial, sans-serif; color:#222;">
-    
-      <!-- לוגו / כותרת -->
-      <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
-        <tr>
-          <td style="font-size:18px; font-weight:bold;">
+    await sendTransporter.sendMail({
+      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
+      to: emp.email,
+      subject: "עדכון: שינוי מדיניות ימי חופש",
+      html: `
+        <div dir="rtl" style="font-family:Arial, sans-serif; color:#222;">
+        
+          <!-- לוגו / כותרת -->
+          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
+            <tr>
+              <td style="font-size:18px; font-weight:bold;">
+                Paragon Group
+              </td>
+            </tr>
+          </table>
+        
+          <!-- גוף -->
+          <p>שלום ${emp.name},</p>
+        
+          <p>
+            מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.
+          </p>
+        
+          <p>
+            נשמח אם תעבור על המסמך.
+          </p>
+        
+          <!-- כרטיס קובץ -->
+          <table cellpadding="0" cellspacing="0" border="0" style="
+            width:240px;
+            border:1px solid #d9d9d9;
+            background:#f5f5f5;
+          ">
+            <tr>
+              <td style="padding:12px;">
+        
+                <table width="100%">
+                  <tr>
+                    <td width="35" valign="top">
+                      <div style="
+                        background:#d93025;
+                        color:white;
+                        font-size:11px;
+                        font-weight:bold;
+                        padding:4px;
+                        text-align:center;
+                      ">
+                        PDF
+                      </div>
+                    </td>
+        
+                    <td valign="top" style="padding-right:8px;">
+                      <div style="
+                        font-size:13px;
+                        font-weight:bold;
+                      ">
+                        עדכון_מדיניות_ימי_חופש.pdf
+                      </div>
+        
+                      <div style="
+                        font-size:11px;
+                        color:#777;
+                        margin-top:6px;
+                      ">
+                        182 KB
+                      </div>
+                    </td>
+                  </tr>
+                </table>
+        
+                <!-- כפתור פתיחה -->
+                <table width="100%" style="margin-top:10px;">
+                  <tr>
+                    <td>
+                      <a href="${link}" style="
+                        display:inline-block;
+                        background:#1a73e8;
+                        color:white;
+                        text-decoration:none;
+                        padding:6px 10px;
+                        font-size:12px;
+                        border-radius:4px;
+                      ">
+                        פתיחה
+                      </a>
+                    </td>
+                  </tr>
+                </table>
+        
+              </td>
+            </tr>
+          </table>
+        
+          <!-- הערה -->
+          <p style="margin-top:15px; font-size:12px; color:#777;">
+            לעיון בלבד.
+          </p>
+        
+          <!-- חתימה -->
+          <p style="margin-top:20px;">
+            תודה,<br>
             Paragon Group
-          </td>
-        </tr>
-      </table>
-    
-      <!-- גוף -->
-      <p>שלום ${emp.name},</p>
-    
-      <p>
-        מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.
-      </p>
-    
-      <p>
-        נשמח אם תעבור על המסמך.
-      </p>
-    
-      <!-- כרטיס קובץ -->
-      <table cellpadding="0" cellspacing="0" border="0" style="
-        width:240px;
-        border:1px solid #d9d9d9;
-        background:#f5f5f5;
-      ">
-        <tr>
-          <td style="padding:12px;">
-    
-            <table width="100%">
-              <tr>
-                <td width="35" valign="top">
-                  <div style="
-                    background:#d93025;
-                    color:white;
-                    font-size:11px;
-                    font-weight:bold;
-                    padding:4px;
-                    text-align:center;
-                  ">
-                    PDF
-                  </div>
-                </td>
-    
-                <td valign="top" style="padding-right:8px;">
-                  <div style="
-                    font-size:13px;
-                    font-weight:bold;
-                  ">
-                    עדכון_מדיניות_ימי_חופש.pdf
-                  </div>
-    
-                  <div style="
-                    font-size:11px;
-                    color:#777;
-                    margin-top:6px;
-                  ">
-                    182 KB
-                  </div>
-                </td>
-              </tr>
-            </table>
-    
-            <!-- כפתור פתיחה -->
-            <table width="100%" style="margin-top:10px;">
-              <tr>
-                <td>
-                  <a href="${link}" style="
-                    display:inline-block;
-                    background:#1a73e8;
-                    color:white;
-                    text-decoration:none;
-                    padding:6px 10px;
-                    font-size:12px;
-                    border-radius:4px;
-                  ">
-                    פתיחה
-                  </a>
-                </td>
-              </tr>
-            </table>
-    
-          </td>
-        </tr>
-      </table>
-    
-      <!-- הערה -->
-      <p style="margin-top:15px; font-size:12px; color:#777;">
-        לעיון בלבד.
-      </p>
-    
-      <!-- חתימה -->
-      <p style="margin-top:20px;">
-        תודה,<br>
-        Paragon Group
-      </p>
-    
-    </div>
-    `
-	});
-	    console.log("Tracking email sent:", emp.email, link);
-	  }
-	}
+          </p>
+        
+        </div>
+      `
+    });
+
+    console.log("Tracking email sent:", emp.email, link);
+  }
+}
+
 // =======================
 // LOGIN
 // =======================
-	app.get("/login", (req, res) => {
-	  res.sendFile(path.join(__dirname, "views", "login.html"));
-	});
-		app.get("/register-page", (req, res) => {
-		  res.sendFile(path.join(__dirname, "views", "register.html"));
-		});
+app.get("/login", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "login.html"));
+});
 
-			app.post("/login", (req, res) => {
-			  const { user, password } = req.body;
+app.get("/register-page", (req, res) => {
+  res.sendFile(path.join(__dirname, "views", "register.html"));
+});
 
-			  if (
-			    user === process.env.ADMIN_USER &&
-			    password === process.env.ADMIN_PASSWORD
-				  ) {
-				    req.session.loggedIn = true;
-				    return res.redirect("/admin");
-				  }
+app.post("/login", (req, res) => {
+  const { user, password } = req.body;
 
-					  res.send("פרטים שגויים");
-					});
+  if (
+    user === process.env.ADMIN_USER &&
+    password === process.env.ADMIN_PASSWORD
+  ) {
+    req.session.loggedIn = true;
+    return res.redirect("/admin");
+  }
+
+  res.send("פרטים שגויים");
+});
 
 // =======================
 // SEND MAILS BUTTON
@@ -430,20 +422,20 @@ app.post("/admin/send-mails", async (req, res) => {
       </body>
       </html>
     `);
-	  } catch (err) {
-	    console.log("SEND MAILS ERROR:", err);
-	    res.status(500).send(`
-	      <html dir="rtl">
-	      <head><meta charset="UTF-8"></head>
-	      <body>
-		<h2>שגיאה בשליחת מיילים ❌</h2>
-		<pre>${err.message}</pre>
-		<a href="/admin">חזרה לאדמין</a>
-	      </body>
-	      </html>
-	    `);
-	  }
-	});
+  } catch (err) {
+    console.log("SEND MAILS ERROR:", err);
+    res.status(500).send(`
+      <html dir="rtl">
+      <head><meta charset="UTF-8"></head>
+      <body>
+        <h2>שגיאה בשליחת מיילים ❌</h2>
+        <pre>${err.message}</pre>
+        <a href="/admin">חזרה לאדמין</a>
+      </body>
+      </html>
+    `);
+  }
+});
 
 // =======================
 // ADMIN
@@ -487,6 +479,7 @@ app.get("/admin", async (req, res) => {
         <tr>
           <td>${r.full_name}</td>
           <td>${r.company || ""}</td>
+          <td>${r.department || ""}</td>
           <td>${r.phone || ""}</td>
           <td>${r.email}</td>
           <td>${r.created_at}</td>
@@ -504,106 +497,106 @@ app.get("/admin", async (req, res) => {
 
     let clickRows = "";
 
-   clickedNotRegistered.rows.forEach(v => {
-  clickRows += `
-    <tr>
-      <td>${v.employee_name || ""}</td>
-      <td>${v.employee_email || ""}</td>
-      <td>${v.clicked_at || ""}</td>
-      <td>${v.ip || ""}</td>
-      <td>${v.click_count || 0}</td>
-    </tr>
-  `;
-});
+    clickedNotRegistered.rows.forEach(v => {
+      clickRows += `
+        <tr>
+          <td>${v.employee_name || ""}</td>
+          <td>${v.employee_email || ""}</td>
+          <td>${v.clicked_at || ""}</td>
+          <td>${v.ip || ""}</td>
+          <td>${v.click_count || 0}</td>
+        </tr>
+      `;
+    });
 
-  res.send(`
-  <html dir="rtl">
-  <head>
-    <meta charset="UTF-8">
-    <link rel="stylesheet" href="/admin.css">
-  </head>
-  <body>
+    res.send(`
+      <html dir="rtl">
+      <head>
+        <meta charset="UTF-8">
+        <link rel="stylesheet" href="/admin.css">
+      </head>
+      <body>
 
-    <div class="content">
-    
-    <h2>מערכת אדמין</h2>
+        <div class="content">
+        
+        <h2>מערכת אדמין</h2>
 
-    <div class="stats">
-      <div class="card">
-        <div class="big-number">${totalClicks.rows[0].count}</div>
-        <div class="label">👆 לחיצות</div>
+        <div class="stats">
+          <div class="card">
+            <div class="big-number">${totalClicks.rows[0].count}</div>
+            <div class="label">👆 לחיצות</div>
+          </div>
+
+          <div class="card">
+            <div class="big-number">${totalRegs.rows[0].count}</div>
+            <div class="label">✅ נרשמים</div>
+          </div>
+        </div>
+
+        <div class="top-bar">
+          <a href="/logout" class="logout-btn">🚪 יציאה</a>
+
+          <form method="POST" action="/admin/send-mails">
+            <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
+              📤 שלח מיילים לעובדים
+            </button>
+          </form>
+
+          <form method="POST" action="/admin/reset-clicks"
+              onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
+            <button class="reset-clicks-btn">
+              איפוס קליקים בלבד ⚠️
+            </button>
+          </form>
+        </div>
+
+        <h3>נרשמו</h3>
+
+        <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
+
+        <table border="1" cellpadding="8">
+          <tr>
+            <th>שם</th>
+            <th>חברה</th>
+            <th>מחלקה</th>
+            <th>טלפון</th>
+            <th>אימייל</th>
+            <th>תאריך</th>
+            <th>IP</th>
+            <th>סטטוס</th>
+            <th>פעולות</th>
+          </tr>
+          ${registrationRows}
+        </table>
+
+        <h3>לחצו על הקישור אבל לא נרשמו</h3>
+
+        <table border="1" cellpadding="8">
+          <tr>
+            <th>שם עובד</th>
+            <th>מייל</th>
+            <th>זמן לחיצה אחרון</th>
+            <th>IP</th>
+            <th>כמות לחיצות</th>
+          </tr>
+          ${clickRows}
+        </table>
+
+        <script>
+          function searchTable() {
+            const input = document.getElementById("search").value.toLowerCase();
+            const rows = document.querySelectorAll("table:first-of-type tr");
+
+            rows.forEach((row, i) => {
+              if (i === 0) return;
+              row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+            });
+          }
+        </script>
       </div>
-
-      <div class="card">
-        <div class="big-number">${totalRegs.rows[0].count}</div>
-        <div class="label">✅ נרשמים</div>
-      </div>
-    </div>
-
-
-    <div class="top-bar">
-      <a href="/logout" class="logout-btn">🚪 יציאה</a>
-
-	  <form method="POST" action="/admin/send-mails">
-	  <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
-	    📤 שלח מיילים לעובדים
-	  </button>
-	</form>
-
-    <form method="POST" action="/admin/reset-clicks"
-        onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
-    <button class="reset-clicks-btn">
-      איפוס קליקים בלבד ⚠️
-    </button>
-  </form>
-    </div>
-
-    <h3>נרשמו</h3>
-
-    <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
-
-    <table border="1" cellpadding="8">
-      <tr>
-        <th>שם</th>
-        <th>חברה</th>
-        <th>טלפון</th>
-        <th>אימייל</th>
-        <th>תאריך</th>
-        <th>IP</th>
-        <th>סטטוס</th>
-        <th>פעולות</th>
-      </tr>
-      ${registrationRows}
-    </table>
-
-    <h3>לחצו על הקישור אבל לא נרשמו</h3>
-
-    <table border="1" cellpadding="8">
-      <tr>
-        <th>שם עובד</th>
-        <th>מייל</th>
-        <th>זמן לחיצה אחרון</th>
-        <th>IP</th>
-        <th>כמות לחיצות</th>
-      </tr>
-      ${clickRows}
-    </table>
-
-    <script>
-      function searchTable() {
-        const input = document.getElementById("search").value.toLowerCase();
-        const rows = document.querySelectorAll("table:first-of-type tr");
-
-        rows.forEach((row, i) => {
-          if (i === 0) return;
-          row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
-        });
-      }
-    </script>
-  </div>
-  </body>
-  </html>
-`);
+      </body>
+      </html>
+    `);
 
   } catch (err) {
     console.log("ADMIN ERROR:", err);
@@ -611,8 +604,9 @@ app.get("/admin", async (req, res) => {
   }
 });
 
-//click reset
-
+// =======================
+// CLICK RESET
+// =======================
 app.post("/admin/reset-clicks", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.status(403).send("אין הרשאה");
