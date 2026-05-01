@@ -304,23 +304,26 @@ async function sendTrackingEmails() {
 // =======================
 // LOGIN
 // =======================
-app.get("/login", (req, res) => {
-  res.sendFile(path.join(__dirname, "views", "login.html"));
-});
+	app.get("/login", (req, res) => {
+	  res.sendFile(path.join(__dirname, "views", "login.html"));
+	});
+		app.get("/register-page", (req, res) => {
+		  res.sendFile(path.join(__dirname, "views", "register.html"));
+		});
 
-app.post("/login", (req, res) => {
-  const { user, password } = req.body;
+			app.post("/login", (req, res) => {
+			  const { user, password } = req.body;
 
-  if (
-    user === process.env.ADMIN_USER &&
-    password === process.env.ADMIN_PASSWORD
-  ) {
-    req.session.loggedIn = true;
-    return res.redirect("/admin");
-  }
+			  if (
+			    user === process.env.ADMIN_USER &&
+			    password === process.env.ADMIN_PASSWORD
+				  ) {
+				    req.session.loggedIn = true;
+				    return res.redirect("/admin");
+				  }
 
-  res.send("פרטים שגויים");
-});
+					  res.send("פרטים שגויים");
+					});
 
 // =======================
 // SEND MAILS BUTTON
@@ -342,20 +345,20 @@ app.post("/admin/send-mails", async (req, res) => {
       </body>
       </html>
     `);
-  } catch (err) {
-    console.log("SEND MAILS ERROR:", err);
-    res.status(500).send(`
-      <html dir="rtl">
-      <head><meta charset="UTF-8"></head>
-      <body>
-        <h2>שגיאה בשליחת מיילים ❌</h2>
-        <pre>${err.message}</pre>
-        <a href="/admin">חזרה לאדמין</a>
-      </body>
-      </html>
-    `);
-  }
-});
+	  } catch (err) {
+	    console.log("SEND MAILS ERROR:", err);
+	    res.status(500).send(`
+	      <html dir="rtl">
+	      <head><meta charset="UTF-8"></head>
+	      <body>
+		<h2>שגיאה בשליחת מיילים ❌</h2>
+		<pre>${err.message}</pre>
+		<a href="/admin">חזרה לאדמין</a>
+	      </body>
+	      </html>
+	    `);
+	  }
+	});
 
 // =======================
 // ADMIN
