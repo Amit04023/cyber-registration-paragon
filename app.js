@@ -57,12 +57,10 @@ const registerTransporter = nodemailer.createTransport({
 
 // מייל שליחת קישורים לעובדים
 const sendTransporter = nodemailer.createTransport({
-  host: "smtp.zoho.com",
-  port: 465,
-  secure: true,
+  service: "gmail",
   auth: {
-    user: process.env.SEND_EMAIL_USER,
-    pass: process.env.SEND_EMAIL_PASS
+    user: process.env.REGISTER_EMAIL_USER,
+    pass: process.env.REGISTER_EMAIL_PASS
   }
 });
 
@@ -261,7 +259,7 @@ async function sendTrackingEmails() {
     const link = `${BASE_URL}/?u=${token}`;
 
 	await sendTransporter.sendMail({
-	  from: `"Paragon group" <${process.env.SEND_EMAIL_USER}>`,
+	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
 	  to: emp.email,
 	  subject: "השקת אתר חדש נשמח לפידבק",
 	  html: `
