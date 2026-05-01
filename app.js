@@ -97,7 +97,8 @@ app.use(express.static("public"));
 app.use(session({
   store: new pgSession({
     pool: pool,
-    tableName: "session"
+    tableName: "session",
+    createTableIfMissing: true
   }),
   secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
@@ -210,7 +211,7 @@ app.post("/register", async (req, res) => {
   try {
     const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
       || req.socket.remoteAddress;
-    await pool.query(s
+    await pool.query(
       `
       INSERT INTO registrations 
       (full_name, company, phone, email, token, ip, user_agent, simulation_result)
