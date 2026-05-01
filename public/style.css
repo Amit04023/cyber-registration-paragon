@@ -369,8 +369,13 @@ body {
 }
 
 .register-logo {
+  border-radius: 18px;
   width: 80px;
   margin-bottom: 15px;
+  box-shadow:
+    0 0 25px rgba(255,120,40,0.4),
+    0 0 50px rgba(255,80,0,0.25);
+    filter: blur(0.4px);
 }
 
 .register-card h2 {
