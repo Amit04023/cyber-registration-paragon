@@ -516,7 +516,9 @@ app.get("/admin", async (req, res) => {
   </head>
   <body>
 
+    <div class="overlay"></div>
     
+    <h2>מערכת אדמין</h2>
 
     <div class="stats">
       <div class="card">
@@ -530,7 +532,6 @@ app.get("/admin", async (req, res) => {
       </div>
     </div>
 
-<h2>מערכת אדמין</h2>
 
     <div class="top-bar">
       <a href="/logout" class="logout-btn">🚪 יציאה</a>

@@ -4,22 +4,29 @@
 
 body {
   margin: 0;
-  padding: 35px;
-  direction: rtl;
+  min-height: 100vh;
   font-family: Arial, sans-serif;
+  color: #fff;
+  position: relative;
+  overflow-x: hidden;
+}
 
-  background: url('/admin.png') no-repeat center center fixed;
-  background-size: cover;
-
-  color: #e5e7eb;
+body::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.75);
+  z-index: -1;
 }
 
 body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.75); /* כהות */
-  z-index: -1;
+  background: url('/hacker.png') no-repeat center center;
+  background-size: cover;
+  animation: zoomBg 20s ease-in-out infinite alternate;
+  z-index: -2;
 }
 
 
@@ -190,6 +197,24 @@ tr:hover td {
 .top-bar {
   display: flex;
   align-items: center;
-  gap: 10px;
-  justify-content: space-between;
+  justify-content: flex-start;
+}
+
+@keyframes zoomBg {
+  from { transform: scale(1); }
+  to { transform: scale(1.05); }
+}
+
+@keyframes glowEyes {
+  from { opacity: 0.4; }
+  to { opacity: 1; }
+}
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: linear-gradient(
+    rgba(0,0,0,0.6),
+    rgba(0,0,0,0.8)
+  );
 }
