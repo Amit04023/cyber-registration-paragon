@@ -1,5 +1,5 @@
 /* =====================================================
-   RESET + GLOBAL (משותף לכל האתר)
+   RESET + GLOBAL
 ===================================================== */
 
 * {
@@ -14,7 +14,7 @@ body {
 
 
 /* =====================================================
-   BUTTON SYSTEM (כפתורים לכל האתר)
+   BUTTON SYSTEM
 ===================================================== */
 
 .btn {
@@ -35,68 +35,71 @@ body {
 
 
 /* =====================================================
-   PAGE: AWARENESS (index.ejs)
-   סימולציית מודעות סייבר
+   PAGE: AWARENESS
 ===================================================== */
 
 .awareness-page {
   height: 100vh;
-  background: #05070b;
+  background: #020202;
   color: #e5e7eb;
   overflow: hidden;
 }
 
-/* רקע Matrix */
+/* רקע אש */
 
-.awareness-page #matrix {
+.fire-hero {
   position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  background: #020202;
+}
+
+.fire-logo-bg {
+  position: absolute;
   inset: 0;
   width: 100%;
   height: 100%;
-  z-index: 0;
+  object-fit: cover;
+  animation: firePulse 6s ease-in-out infinite alternate;
 }
 
-/* רקע אנימציה */
-
-.awareness-page .bg-animate {
-  position: fixed;
+#smokeCanvas,
+#embersCanvas {
+  position: absolute;
   inset: 0;
-  background: linear-gradient(120deg, #001f1a, #001a2e, #002a24, #001f1a);
-  background-size: 300% 300%;
-  animation: gradientMove 18s ease infinite;
-  z-index: 1;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
 }
 
-/* גריד */
-
-.awareness-page .grid {
-  position: fixed;
-  inset: 0;
-  background-image:
-    linear-gradient(rgba(0,255,170,0.06) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(0,255,170,0.06) 1px, transparent 1px);
-  background-size: 42px 42px;
-  animation: gridMove 22s linear infinite;
+#smokeCanvas {
   z-index: 2;
+  opacity: 0.95;
+  mix-blend-mode: screen;
 }
 
-/* glow */
-
-.awareness-page .glow {
-  position: fixed;
-  inset: 0;
-  background:
-    radial-gradient(circle at 20% 25%, rgba(0,255,170,0.18), transparent 34%),
-    radial-gradient(circle at 80% 75%, rgba(0,120,255,0.16), transparent 38%);
-  animation: glowMove 10s ease-in-out infinite alternate;
+#embersCanvas {
   z-index: 3;
+  opacity: 1;
+  mix-blend-mode: screen;
+}
+
+.fire-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 4;
+  background:
+    radial-gradient(circle at center, transparent 18%, rgba(0,0,0,0.70) 75%),
+    linear-gradient(to top, rgba(0,0,0,0.82), transparent 45%, rgba(0,0,0,0.30));
+  pointer-events: none;
 }
 
 /* עוטף */
 
 .awareness-wrap {
   position: relative;
-  z-index: 4;
+  z-index: 10;
   height: 100vh;
   display: flex;
   justify-content: center;
@@ -106,14 +109,44 @@ body {
 /* כרטיס מרכזי */
 
 .awareness-card {
+  position: relative;
   width: 760px;
   max-width: 95%;
-  background: rgba(8, 13, 22, 0.86);
-  border: 1px solid rgba(0,255,170,0.28);
-  border-radius: 18px;
   padding: 34px;
-  box-shadow: 0 0 60px rgba(0,255,170,0.16);
-  backdrop-filter: blur(10px);
+  border-radius: 34px;
+  overflow: hidden;
+
+  background: rgba(0, 0, 0, 0.28);
+  border: 1px solid rgba(255, 120, 40, 0.16);
+
+  backdrop-filter: blur(20px) saturate(140%);
+  -webkit-backdrop-filter: blur(20px) saturate(140%);
+
+  box-shadow:
+    0 0 85px rgba(255, 85, 0, 0.25),
+    0 0 160px rgba(0, 0, 0, 0.8),
+    inset 0 0 55px rgba(255, 120, 40, 0.08);
+}
+
+.awareness-card::before {
+  content: "";
+  position: absolute;
+  inset: -45px;
+  background:
+    radial-gradient(circle at 20% 15%, rgba(255, 120, 40, 0.25), transparent 35%),
+    radial-gradient(circle at 80% 85%, rgba(255, 60, 0, 0.20), transparent 38%);
+  filter: blur(40px);
+  opacity: 0.85;
+  z-index: -1;
+}
+
+.awareness-card::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 34px;
+  box-shadow: inset 0 0 70px rgba(0, 0, 0, 0.70);
+  pointer-events: none;
 }
 
 /* לוגו */
@@ -128,45 +161,34 @@ body {
 
 .awareness-badge {
   display: inline-flex;
-  align-items: center;
-  gap: 6px;
-
   padding: 8px 14px;
   border-radius: 999px;
-
   font-size: 13px;
   font-weight: 600;
   letter-spacing: 0.5px;
-
-  color: #00ffaa;
-
-  background: rgba(0, 255, 170, 0.08);
-  border: 1px solid rgba(0, 255, 170, 0.35);
-
+  color: #ffb36b;
+  background: rgba(255, 120, 40, 0.08);
+  border: 1px solid rgba(255, 120, 40, 0.35);
   box-shadow:
-    0 0 10px rgba(0,255,170,0.25),
-    inset 0 0 8px rgba(0,255,170,0.15);
-
-  backdrop-filter: blur(6px);
-
+    0 0 14px rgba(255,120,40,0.35),
+    inset 0 0 10px rgba(255,120,40,0.14);
+  backdrop-filter: blur(8px);
   transition: 0.25s;
 }
 
 .awareness-badge:hover {
   transform: translateY(-2px) scale(1.03);
-
   box-shadow:
-    0 0 18px rgba(0,255,170,0.6),
-    0 0 35px rgba(0,255,170,0.3),
-    inset 0 0 10px rgba(0,255,170,0.25);
-
-  border-color: #00ffaa;
+    0 0 18px rgba(255,120,40,0.7),
+    0 0 35px rgba(255,80,0,0.35),
+    inset 0 0 10px rgba(255,120,40,0.25);
+  border-color: #ffb36b;
 }
 
 /* כותרת */
 
 .awareness-card h1 {
-  margin: 0 0 14px;
+  margin: 18px 0 14px;
   font-size: 32px;
   color: #fff;
 }
@@ -178,39 +200,43 @@ body {
   white-space: pre-line;
   line-height: 1.9;
   font-size: 18px;
-  color: #cbd5e1;
+  color: #e2e8f0;
 }
 
-/* כפתור עמוד זה בלבד */
+/* כפתור */
 
 .awareness-btn {
   display: none;
   margin-top: 25px;
   width: 100%;
   padding: 15px;
-  border-radius: 12px;
-  background: #00d084;
-  color: #00110a;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #ff7a18, #ff3d00);
+  color: #fff;
   font-size: 17px;
   font-weight: bold;
   cursor: pointer;
+  box-shadow: 0 0 28px rgba(255, 90, 0, 0.45);
+  transition: 0.25s;
 }
 
 .awareness-btn:hover {
-  background: #00b873;
+  background: linear-gradient(135deg, #ff9a2f, #ff4b12);
+  transform: translateY(-1px);
 }
 
 /* הערה */
 
 .awareness-note {
   margin-top: 18px;
-  color: #94a3b8;
+  color: #cbd5e1;
   font-size: 13px;
 }
 
 
 /* =====================================================
-   PAGE: SUCCESS (success.html)
+   PAGE: SUCCESS
 ===================================================== */
 
 .success-page {
@@ -245,7 +271,6 @@ body {
 
 /* =====================================================
    PAGE: LOGIN
-   עמוד כניסת אדמין
 ===================================================== */
 
 .login-page {
@@ -318,8 +343,7 @@ body {
 
 
 /* =====================================================
-   PAGE: REGISTER (register.html)
-   עמוד הרשמה להרצאת מודעות סייבר
+   PAGE: REGISTER
 ===================================================== */
 
 .register-page {
@@ -409,97 +433,17 @@ select {
   outline: none;
 }
 
+
 /* =====================================================
    ANIMATIONS
 ===================================================== */
-
-@keyframes gradientMove {
-  0% { background-position: 0% 50%; }
-  50% { background-position: 100% 50%; }
-  100% { background-position: 0% 50%; }
-}
-
-@keyframes gridMove {
-  from { transform: translateY(0); }
-  to { transform: translateY(42px); }
-}
-
-@keyframes glowMove {
-  from { transform: translateY(0); }
-  to { transform: translateY(-22px); }
-}
-
-@keyframes scan {
-  from { transform: translateX(190%); }
-  to { transform: translateX(-190%); }
-}
-
-@keyframes pulse {
-  0%, 100% { transform: scale(1); }
-  50% { transform: scale(1.06); }
-}
-
-/* =====================================================
-   FIRE HERO (fire-hero.ejs)
-===================================================== */
-
-.fire-hero {
-  position: fixed;
-  inset: 0;
-  z-index: 0;
-  overflow: hidden;
-  background: #020202;
-}
-
-.fire-logo-bg {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-  animation: firePulse 6s ease-in-out infinite alternate;
-}
-
-#smokeCanvas,
-#embersCanvas {
-  position: absolute;
-  inset: 0;
-  width: 100%;
-  height: 100%;
-  pointer-events: none;
-}
-
-#smokeCanvas {
-  z-index: 2;
-  opacity: 0.75;
-  mix-blend-mode: screen;
-}
-
-#embersCanvas {
-  z-index: 3;
-  mix-blend-mode: screen;
-}
-
-.fire-overlay {
-  position: absolute;
-  inset: 0;
-  z-index: 4;
-  background:
-    radial-gradient(circle at center, transparent 20%, rgba(0,0,0,0.78) 78%),
-    linear-gradient(to top, rgba(0,0,0,0.85), transparent 45%, rgba(0,0,0,0.35));
-  pointer-events: none;
-}
-
-.awareness-wrap {
-  position: relative;
-  z-index: 10;
-}
 
 @keyframes firePulse {
   from {
     transform: scale(1.04);
     filter: brightness(0.95) contrast(1.05) saturate(1.05);
   }
+
   to {
     transform: scale(1.09);
     filter: brightness(1.15) contrast(1.2) saturate(1.3);
