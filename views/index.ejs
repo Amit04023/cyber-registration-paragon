@@ -3,44 +3,70 @@
 <head>
   <meta charset="UTF-8">
   <title>Security Awareness</title>
+
   <style>
-    * { box-sizing: border-box; }
+    * {
+      box-sizing: border-box;
+    }
 
     body {
       margin: 0;
       height: 100vh;
-      overflow: hidden;
       font-family: Arial, sans-serif;
       background: #05070b;
       color: #e5e7eb;
+      overflow: hidden;
+    }
+
+    .bg-animate {
+      position: fixed;
+      inset: 0;
+      background: linear-gradient(120deg, #001f1a, #001a2e, #002a24, #001f1a);
+      background-size: 300% 300%;
+      animation: gradientMove 18s ease infinite;
+      z-index: 0;
+    }
+
+    @keyframes gradientMove {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
     }
 
     .grid {
       position: fixed;
       inset: 0;
       background-image:
-        linear-gradient(rgba(0,255,170,0.05) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0,255,170,0.05) 1px, transparent 1px);
-      background-size: 45px 45px;
-      animation: moveGrid 18s linear infinite;
+        linear-gradient(rgba(0,255,170,0.06) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(0,255,170,0.06) 1px, transparent 1px);
+      background-size: 42px 42px;
+      animation: gridMove 22s linear infinite;
+      z-index: 1;
     }
 
-    @keyframes moveGrid {
+    @keyframes gridMove {
       from { transform: translateY(0); }
-      to { transform: translateY(45px); }
+      to { transform: translateY(42px); }
     }
 
     .glow {
       position: fixed;
       inset: 0;
       background:
-        radial-gradient(circle at 20% 20%, rgba(0,255,170,0.16), transparent 30%),
-        radial-gradient(circle at 80% 80%, rgba(0,120,255,0.14), transparent 35%);
+        radial-gradient(circle at 20% 25%, rgba(0,255,170,0.18), transparent 34%),
+        radial-gradient(circle at 80% 75%, rgba(0,120,255,0.16), transparent 38%);
+      animation: glowMove 10s ease-in-out infinite alternate;
+      z-index: 2;
+    }
+
+    @keyframes glowMove {
+      from { transform: translateY(0); }
+      to { transform: translateY(-22px); }
     }
 
     .wrap {
       position: relative;
-      z-index: 2;
+      z-index: 3;
       height: 100vh;
       display: flex;
       justify-content: center;
@@ -51,16 +77,20 @@
     .card {
       width: 760px;
       max-width: 95%;
-      background: rgba(8, 13, 22, 0.9);
-      border: 1px solid rgba(0,255,170,0.25);
+      background: rgba(8, 13, 22, 0.86);
+      border: 1px solid rgba(0,255,170,0.28);
       border-radius: 18px;
       padding: 34px;
-      box-shadow: 0 0 45px rgba(0,255,170,0.12);
+      box-shadow: 0 0 60px rgba(0,255,170,0.16);
+      backdrop-filter: blur(10px);
     }
 
     .logo {
       width: 90px;
       margin-bottom: 18px;
+      border-radius: 12px;
+      -webkit-mask-image: radial-gradient(circle, black 65%, transparent 100%);
+      mask-image: radial-gradient(circle, black 65%, transparent 100%);
     }
 
     .badge {
@@ -115,6 +145,7 @@
 
 <body>
 
+<div class="bg-animate"></div>
 <div class="grid"></div>
 <div class="glow"></div>
 
