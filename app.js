@@ -557,7 +557,6 @@ app.get("/admin", async (req, res) => {
         <table border="1" cellpadding="8">
           <tr>
             <th>שם</th>
-            <th>חברה</th>
             <th>מחלקה</th>
             <th>טלפון</th>
             <th>אימייל</th>
