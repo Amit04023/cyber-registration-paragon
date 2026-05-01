@@ -5,17 +5,19 @@
   <title>כניסת אדמין</title>
   <link rel="stylesheet" href="/style.css">
 </head>
-<body>
 
-<div class="center-box">
-  <h2>🔐 כניסת אדמין</h2>
+<body class="login-page">
 
-  <form method="POST" action="/login">
-    <input name="user" placeholder="שם משתמש" required>
-    <input name="password" type="password" placeholder="סיסמה" required>
-    <button type="submit">כניסה</button>
-  </form>
-</div>
+  <div class="login-card">
+    <h2>🔐 כניסת אדמין</h2>
+
+    <form method="POST" action="/login">
+      <input name="user" placeholder="שם משתמש" required>
+      <input name="password" type="password" placeholder="סיסמה" required>
+
+      <button type="submit" class="login-btn">כניסה</button>
+    </form>
+  </div>
 
 </body>
 </html>
