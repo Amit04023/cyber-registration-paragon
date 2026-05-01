@@ -2,6 +2,7 @@ const express = require("express");
 const nodemailer = require("nodemailer");
 const { Pool } = require("pg");
 const session = require("express-session");
+const pgSession = require("connect-pg-simple")(session);
 const path = require("path");
 const crypto = require("crypto");
 
@@ -94,11 +95,16 @@ app.use(express.json());
 app.use(express.static("public"));
 
 app.use(session({
-  secret: process.env.SESSION_SECRET || "change-this-secret",
+  store: new pgSession({
+    pool: pool,
+    tableName: "session"
+  }),
+  secret: process.env.SESSION_SECRET || "dev-secret",
   resave: false,
   saveUninitialized: false,
   cookie: {
-    secure: false
+    secure: false,
+    maxAge: 1000 * 60 * 60 * 24
   }
 }));
 

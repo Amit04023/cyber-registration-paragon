@@ -10,6 +10,7 @@
     "node": "20.x"
   },
   "dependencies": {
+    "connect-pg-simple": "^10.0.0",
     "ejs": "^5.0.2",
     "express": "^5.2.1",
     "express-session": "^1.19.0",
