@@ -212,15 +212,6 @@ tr:hover td {
   direction: rtl;
 }
 
-@keyframes zoomBg {
-  from { transform: scale(1); }
-  to { transform: scale(1.05); }
-}
-
-@keyframes glowEyes {
-  from { opacity: 0.4; }
-  to { opacity: 1; }
-}
 
 .overlay {
   position: fixed;
