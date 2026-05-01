@@ -8,35 +8,41 @@
 
 <body class="awareness-page">
 
-  <canvas id="matrix"></canvas>
-  <div class="bg-animate"></div>
-  <div class="grid"></div>
-  <div class="glow"></div>
-
-<div class="awareness-wrap">
-  <div class="awareness-card">
-
-    <img src="/logo1.png" class="awareness-logo" alt="logo">
-
-    <div class="awareness-badge">Security Awareness Simulation</div>
-
-    <h1>שלום <%= name %></h1>
-
-    <div id="typed"></div>
-
-    <button id="btn" class="awareness-btn" onclick="goToRegister()">
-      הבנתי, המשך להרשמה להרצאת מודעות סייבר
-    </button>
-
-    <div class="awareness-note">
-      זהו תרגיל מודעות בלבד. לא נאספו סיסמאות או פרטים רגישים.
-    </div>
-
+  <!-- רקע אש חדש -->
+  <div class="fire-hero">
+    <img src="/logo2.png" class="fire-logo-bg" alt="logo">
+    <canvas id="smokeCanvas"></canvas>
+    <canvas id="embersCanvas"></canvas>
+    <div class="fire-overlay"></div>
   </div>
-</div>
 
-<script>
-  const message = `
+  <!-- תוכן -->
+  <div class="awareness-wrap">
+    <div class="awareness-card">
+
+      <img src="/logo1.png" class="awareness-logo" alt="logo">
+
+      <div class="awareness-badge">
+        Paragon Advanced Security Awareness Simulation
+      </div>
+
+      <h1>שלום <%= name %></h1>
+
+      <div id="typed"></div>
+
+      <button id="btn" class="awareness-btn" onclick="goToRegister()">
+        הבנתי, המשך להרשמה להרצאת מודעות סייבר
+      </button>
+
+      <div class="awareness-note">
+        זהו תרגיל מודעות בלבד. לא נאספו סיסמאות או פרטים רגישים.
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    const message = `
 הלחיצה על הקישור זוהתה.
 
 זה בדיוק הרגע שבו בארגונים אמיתיים מתרחשות רוב טעויות האבטחה:
@@ -52,29 +58,29 @@
 זו הייתה סימולציית מודעות סייבר של Paragon.
 `;
 
-  const typed = document.getElementById("typed");
-  const btn = document.getElementById("btn");
+    const typed = document.getElementById("typed");
+    const btn = document.getElementById("btn");
 
-  let i = 0;
+    let i = 0;
 
-  function typeText() {
-    if (i < message.length) {
-      typed.textContent += message.charAt(i);
-      i++;
-      setTimeout(typeText, 32);
-    } else {
-      btn.style.display = "block";
+    function typeText() {
+      if (i < message.length) {
+        typed.textContent += message.charAt(i);
+        i++;
+        setTimeout(typeText, 32);
+      } else {
+        btn.style.display = "block";
+      }
     }
-  }
 
-  function goToRegister() {
-    window.location.href = "/register-page?u=<%= token %>";
-  }
+    function goToRegister() {
+      window.location.href = "/register-page?u=<%= token %>";
+    }
 
-  typeText();
-</script>
+    typeText();
+  </script>
 
-<script src="/script.js"></script>
+  <script src="/script.js"></script>
 
 </body>
 </html>
