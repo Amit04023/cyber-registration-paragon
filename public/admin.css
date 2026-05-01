@@ -17,7 +17,7 @@ body::before {
   content: "";
   position: fixed;
   inset: 0;
-  background: url('/hacker.png') no-repeat center center;
+  background: url('/admin1.png') no-repeat center center;
   background-size: cover;
   animation: zoomBg 20s ease-in-out infinite alternate;
   z-index: 0;
@@ -203,9 +203,13 @@ tr:hover td {
 }
 
 .top-bar {
+  width: 100%;
   display: flex;
+  justify-content: space-between;
   align-items: center;
-  justify-content: flex-start;
+  gap: 12px;
+  margin: 20px 0;
+  direction: rtl;
 }
 
 @keyframes zoomBg {
