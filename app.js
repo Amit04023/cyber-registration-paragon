@@ -516,7 +516,7 @@ app.get("/admin", async (req, res) => {
   </head>
   <body>
 
-    <div class="overlay"></div>
+    <div class="content">
     
     <h2>מערכת אדמין</h2>
 
