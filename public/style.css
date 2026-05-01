@@ -373,6 +373,14 @@ body {
   color: #ffedd5;
 }
 
+select {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(17, 24, 39, 0.8);
+  color: white;
+  outline: none;
+}
 
 /* =====================================================
    ANIMATIONS

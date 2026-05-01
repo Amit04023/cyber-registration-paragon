@@ -206,28 +206,29 @@ app.use(async (req, res, next) => {
 // REGISTER
 // =======================
 app.post("/register", async (req, res) => {
-  const { full_name, company, phone, email, token } = req.body;
+  const { full_name, company, phone, email, token, department } = req.body;
 
   try {
     const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
       || req.socket.remoteAddress;
     await pool.query(
-      `
-      INSERT INTO registrations 
-      (full_name, company, phone, email, token, ip, user_agent, simulation_result)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
-      `,
-      [
-        full_name,
-        company,
-        phone,
-        email,
-        token || null,
-        ip,
-        req.headers["user-agent"],
-        "submitted"
-      ]
-    );
+  `
+  INSERT INTO registrations 
+  (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
+  VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+  `,
+  [
+    full_name,
+    company,
+    phone,
+    email,
+    token || null,
+    ip,
+    req.headers["user-agent"],
+    "submitted",
+    department
+  ]
+);
 
     if (token) {
       await pool.query(

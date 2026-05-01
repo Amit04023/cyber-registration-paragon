@@ -21,6 +21,17 @@
   <form method="POST" action="/register">
     <input type="text" name="full_name" placeholder="שם מלא" required>
     <input type="text" name="company" placeholder="מחלקה">
+    <label>מחלקה:</label>
+
+              <select name="department" required>
+                <option value="">בחר מחלקה</option>
+                <option value="מכירות">מכירות</option>
+                <option value="הנדסה">הנדסה</option>
+                <option value="שירות">שירות</option>
+                <option value="פרויקטים">פרויקטים</option>
+                <option value="כספים">כספים</option>
+              </select>
+              
     <input type="text" name="phone" placeholder="טלפון">
     <input type="email" name="email" placeholder="אימייל" required>
 
