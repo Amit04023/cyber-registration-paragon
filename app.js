@@ -156,6 +156,8 @@ app.use(async (req, res, next) => {
     const emp = findEmployeeByToken(token);
 
     try {
+      const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
+       || req.socket.remoteAddress;
       await pool.query(
         `
         INSERT INTO clicks 
@@ -166,7 +168,7 @@ app.use(async (req, res, next) => {
           token,
           emp ? emp.name : "Unknown",
           emp ? emp.email : "Unknown",
-          req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+          ip,
           req.headers["user-agent"]
         ]
       );
@@ -200,7 +202,9 @@ app.post("/register", async (req, res) => {
   const { full_name, company, phone, email, token } = req.body;
 
   try {
-    await pool.query(
+    const ip = req.headers["x-forwarded-for"]?.split(",").pop().trim()
+      || req.socket.remoteAddress;
+    await pool.query(s
       `
       INSERT INTO registrations 
       (full_name, company, phone, email, token, ip, user_agent, simulation_result)
@@ -212,7 +216,7 @@ app.post("/register", async (req, res) => {
         phone,
         email,
         token || null,
-        req.headers["x-forwarded-for"] || req.socket.remoteAddress,
+        ip,
         req.headers["user-agent"],
         "submitted"
       ]
