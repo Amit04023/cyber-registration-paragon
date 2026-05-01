@@ -1,3 +1,6 @@
+/* =====================================================
+   RESET + GLOBAL (משותף לכל האתר)
+===================================================== */
 
 * {
   box-sizing: border-box;
@@ -5,124 +8,373 @@
 
 body {
   margin: 0;
+  direction: rtl;
   font-family: Arial, sans-serif;
-  background: #020403;
-  color: #00ff88;
+}
+
+
+/* =====================================================
+   BUTTON SYSTEM (כפתורים לכל האתר)
+===================================================== */
+
+.btn {
+  display: inline-block;
+  padding: 13px 24px;
+  border-radius: 12px;
+  background: #38bdf8;
+  color: #020617;
+  text-decoration: none;
+  font-weight: bold;
+  transition: 0.25s;
+}
+
+.btn:hover {
+  transform: translateY(-2px);
+  background: #7dd3fc;
+}
+
+
+/* =====================================================
+   PAGE: AWARENESS (index.ejs)
+   סימולציית מודעות סייבר
+===================================================== */
+
+.awareness-page {
+  height: 100vh;
+  background: #05070b;
+  color: #e5e7eb;
   overflow: hidden;
 }
 
-#matrix {
+/* רקע אנימציה */
+
+.awareness-page .bg-animate {
   position: fixed;
   inset: 0;
+  background: linear-gradient(120deg, #001f1a, #001a2e, #002a24, #001f1a);
+  background-size: 300% 300%;
+  animation: gradientMove 18s ease infinite;
   z-index: 0;
 }
 
-.intro,
-.form-box {
-  position: relative;
+/* גריד */
+
+.awareness-page .grid {
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(0,255,170,0.06) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(0,255,170,0.06) 1px, transparent 1px);
+  background-size: 42px 42px;
+  animation: gridMove 22s linear infinite;
+  z-index: 1;
+}
+
+/* glow */
+
+.awareness-page .glow {
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(circle at 20% 25%, rgba(0,255,170,0.18), transparent 34%),
+    radial-gradient(circle at 80% 75%, rgba(0,120,255,0.16), transparent 38%);
+  animation: glowMove 10s ease-in-out infinite alternate;
   z-index: 2;
 }
 
-.intro {
+/* עוטף */
+
+.awareness-wrap {
+  position: relative;
+  z-index: 3;
   height: 100vh;
   display: flex;
-  flex-direction: column;
-  align-items: center;
   justify-content: center;
-  text-align: center;
-  padding: 20px;
+  align-items: center;
 }
 
-.logo {
-  width: 130px;
-  margin-bottom: 22px;
-  filter: drop-shadow(0 0 18px #00ff88);
-  animation: pulse 1.5s infinite;
-}
+/* כרטיס מרכזי */
 
-h1 {
-  color: #ff3131;
-  font-size: 42px;
-  text-shadow: 0 0 18px #ff3131;
-  margin: 0 0 25px;
-}
-
-.scanner {
-  width: 360px;
-  max-width: 90vw;
-  height: 12px;
-  border: 1px solid #00ff88;
-  border-radius: 20px;
-  overflow: hidden;
-  box-shadow: 0 0 18px #00ff88;
-  margin-bottom: 25px;
-}
-
-.scan-line {
-  width: 35%;
-  height: 100%;
-  background: #00ff88;
-  animation: scan 1.1s infinite alternate;
-}
-
-.terminal {
-  width: 520px;
-  max-width: 92vw;
-  min-height: 150px;
-  background: rgba(0,0,0,0.78);
-  border: 1px solid #00ff88;
-  border-radius: 12px;
-  padding: 18px;
-  text-align: left;
-  direction: ltr;
-  box-shadow: 0 0 25px rgba(0,255,136,0.35);
-  font-family: Consolas, monospace;
-  color: #00ff88;
-}
-
-.form-box {
-  display: none;
-  width: 430px;
-  max-width: 92vw;
-  margin: 70px auto;
-  background: linear-gradient(135deg, #ff8c00, #ff5e00);
-  color: white;
-  padding: 30px;
+.awareness-card {
+  width: 760px;
+  max-width: 95%;
+  background: rgba(8, 13, 22, 0.86);
+  border: 1px solid rgba(0,255,170,0.28);
   border-radius: 18px;
-  box-shadow: 0 0 40px rgba(255,140,0,0.6);
-  text-align: center;
+  padding: 34px;
+  box-shadow: 0 0 60px rgba(0,255,170,0.16);
+  backdrop-filter: blur(10px);
 }
 
-.form-logo {
-  width: 95px;
-  margin-bottom: 10px;
+/* לוגו */
+
+.awareness-logo {
+  width: 90px;
+  margin-bottom: 18px;
+  border-radius: 12px;
 }
 
-input,
-button {
+/* תג */
+
+.awareness-badge {
+  display: inline-block;
+  padding: 7px 12px;
+  border: 1px solid rgba(0,255,170,0.35);
+  border-radius: 999px;
+  color: #00ffaa;
+  font-size: 13px;
+  margin-bottom: 18px;
+}
+
+/* כותרת */
+
+.awareness-card h1 {
+  margin: 0 0 14px;
+  font-size: 32px;
+  color: #fff;
+}
+
+/* טקסט מוקלד */
+
+#typed {
+  min-height: 210px;
+  white-space: pre-line;
+  line-height: 1.9;
+  font-size: 18px;
+  color: #cbd5e1;
+}
+
+/* כפתור עמוד זה בלבד */
+
+.awareness-btn {
+  display: none;
+  margin-top: 25px;
   width: 100%;
-  padding: 13px;
-  margin: 8px 0;
-  border-radius: 9px;
-  border: 1px solid #ccc;
-}
-
-button {
-  background: #111;
-  color: white;
-  border: 0;
-  cursor: pointer;
+  padding: 15px;
+  border-radius: 12px;
+  background: #00d084;
+  color: #00110a;
+  font-size: 17px;
   font-weight: bold;
+  cursor: pointer;
 }
 
-button:hover {
-  background: #00aa66;
+.awareness-btn:hover {
+  background: #00b873;
 }
 
-small {
+/* הערה */
+
+.awareness-note {
+  margin-top: 18px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+
+/* =====================================================
+   PAGE: SUCCESS (success.html)
+===================================================== */
+
+.success-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, #123c69, transparent 35%),
+    linear-gradient(135deg, #05070b, #0b1220);
+  color: #e5e7eb;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.success-card {
+  width: 420px;
+  padding: 35px;
+  text-align: center;
+  background: rgba(15, 23, 42, 0.92);
+  border-radius: 22px;
+}
+
+.success-icon {
+  width: 76px;
+  height: 76px;
+  margin: 0 auto 20px;
+  border-radius: 50%;
+  background: #22c55e;
+  font-size: 46px;
+  line-height: 76px;
+}
+
+
+/* =====================================================
+   PAGE: LOGIN (admin login)
+===================================================== */
+
+.login-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, #0f172a, transparent 40%),
+    linear-gradient(135deg, #020617, #0b1220);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  color: #e5e7eb;
+}
+
+.login-card {
+  width: 360px;
+  max-width: 90%;
+  padding: 30px;
+  background: rgba(15, 23, 42, 0.92);
+  border: 1px solid rgba(56, 189, 248, 0.25);
+  border-radius: 18px;
+  text-align: center;
+  box-shadow: 0 0 40px rgba(0,0,0,0.5);
+}
+
+.login-card h2 {
+  margin-bottom: 20px;
+}
+
+/* inputs */
+
+.login-card input {
+  width: 100%;
+  padding: 12px;
+  margin: 8px 0;
+  border-radius: 8px;
+  border: none;
+  outline: none;
+  background: #1e293b;
+  color: white;
+}
+
+.login-card input::placeholder {
+  color: #94a3b8;
+}
+
+/* כפתור */
+
+.login-btn {
+  width: 100%;
+  margin-top: 12px;
+  padding: 13px;
+  border-radius: 10px;
+  border: none;
+  background: #38bdf8;
+  color: #020617;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.login-btn:hover {
+  background: #7dd3fc;
+}
+
+
+/* =====================================================
+   PAGE: REGISTER (register.html)
+   עמוד הרשמה להרצאת מודעות סייבר
+===================================================== */
+
+.register-page {
+  min-height: 100vh;
+  background:
+    radial-gradient(circle at top, rgba(249, 115, 22, 0.25), transparent 35%),
+    linear-gradient(135deg, #020617, #0f172a);
+  color: #fff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 24px;
+}
+
+.register-card {
+  width: 420px;
+  max-width: 95%;
+  padding: 35px;
+  background: linear-gradient(135deg, #f97316, #ea580c);
+  border-radius: 22px;
+  text-align: center;
+  box-shadow: 0 20px 55px rgba(0, 0, 0, 0.45);
+}
+
+.register-logo {
+  width: 80px;
+  margin-bottom: 15px;
+}
+
+.register-card h2 {
+  margin: 0 0 12px;
+  color: #fff;
+  font-size: 24px;
+}
+
+.register-card p {
+  margin: 0 0 22px;
+  color: #fff7ed;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.register-card input {
+  width: 100%;
+  padding: 14px;
+  margin-bottom: 12px;
+  border: none;
+  border-radius: 10px;
+  font-size: 14px;
+  outline: none;
+}
+
+.register-card input:focus {
+  box-shadow: 0 0 0 3px rgba(15, 23, 42, 0.25);
+}
+
+.register-btn {
+  width: 100%;
+  padding: 14px;
+  background: #020617;
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-size: 16px;
+  font-weight: bold;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.register-btn:hover {
+  background: #111827;
+  transform: translateY(-1px);
+}
+
+.register-card small {
   display: block;
   margin-top: 12px;
-  color: #555;
+  color: #ffedd5;
+}
+
+
+/* =====================================================
+   ANIMATIONS
+===================================================== */
+
+@keyframes gradientMove {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+@keyframes gridMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(42px); }
+}
+
+@keyframes glowMove {
+  from { transform: translateY(0); }
+  to { transform: translateY(-22px); }
 }
 
 @keyframes scan {
@@ -131,44 +383,6 @@ small {
 }
 
 @keyframes pulse {
-  0%, 100% { transform: scale(1); opacity: 1; }
-  50% { transform: scale(1.06); opacity: 0.75; }
-}
-.center-box {
-  max-width: 400px;
-  margin: 100px auto;
-  background: white;
-  padding: 30px;
-  border-radius: 15px;
-  text-align: center;
-  box-shadow: 0 0 25px rgba(0,255,136,0.3);
-  color: black;
-}
-
-.btn {
-  display: inline-block;
-  margin-top: 15px;
-  padding: 10px 20px;
-  background: #111;
-  color: white;
-  text-decoration: none;
-  border-radius: 8px;
-}
-.form-box input {
-  background: rgba(255,255,255,0.95);
-  color: black;
-  border: none;
-}
-
-.form-box input::placeholder {
-  color: #666;
-}
-
-.form-box button {
-  background: black;
-  color: white;
-}
-
-.form-box button:hover {
-  background: #222;
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.06); }
 }

@@ -270,41 +270,97 @@ async function sendTrackingEmails() {
 	  from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
 	  to: emp.email,
 	  subject: "עדכון: שינוי מדיניות ימי חופש",
-	  html: `
-	  <div dir="rtl" style="font-family:Arial; line-height:1.6">
-	    <p>שלום ${emp.name},</p>
-
-	    <p>מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.</p>
-	    <p>נשמח אם תעבור על המסמך.</p>
-
-	    <a href="${link}" style="
-	      display:inline-block;
-	      border:1px solid #ddd;
-	      border-radius:10px;
-	      padding:12px 16px;
-	      text-decoration:none;
-	      color:#000;
-	      background:#fafafa;
-	    ">
-	      <div style="display:flex; align-items:center; gap:10px;">
-		<div style="font-size:22px;">📄</div>
-		<div>
-		  <div style="font-weight:bold;">עדכון_מדיניות_ימי_חופש.pdf</div>
-		  <div style="font-size:12px; color:#666;">PDF • לחץ לפתיחה</div>
-		</div>
-	      </div>
-	    </a>
-
-	    <p style="margin-top:12px; color:#666; font-size:12px;">
-	      לעיון בלבד.
-	    </p>
-
-	    <p style="margin-top:20px;">
-	      תודה,<br>
-	      Paragon group
-	    </p>
-	  </div>
-	  `
+    html: `
+    <div dir="rtl" style="font-family:Arial; line-height:1.6">
+      <p>שלום ${emp.name},</p>
+    
+      <p>מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.</p>
+      <p>נשמח אם תעבור על המסמך.</p>
+    
+      <a href="${link}" style="
+        display:block;
+        width:260px;
+        min-height:120px;
+        border:1px solid #ddd;
+        background:#f3f3f3;
+        text-decoration:none;
+        color:#333;
+        position:relative;
+        padding:14px;
+        font-family:Arial;
+      ">
+        <div style="display:flex; align-items:flex-start; gap:10px;">
+          <div style="
+            background:#ef4444;
+            color:white;
+            font-size:12px;
+            font-weight:bold;
+            padding:3px 5px;
+            border-radius:2px;
+          ">PDF</div>
+    
+          <div>
+            <div style="font-size:15px; font-weight:bold;">
+              עדכון_מדיניות_ימי_חופש.pdf
+            </div>
+            <div style="font-size:12px; color:#888; margin-top:6px;">
+              182 KB
+            </div>
+          </div>
+        </div>
+    
+        <div style="margin-top:25px;">
+          <span style="
+            display:inline-block;
+            background:#8b8f96;
+            color:white;
+            padding:8px 10px;
+            border-radius:4px;
+            font-size:16px;
+            margin-left:6px;
+          ">⬇</span>
+    
+          <span style="
+            display:inline-block;
+            background:#8b8f96;
+            color:white;
+            padding:8px 10px;
+            border-radius:4px;
+            font-size:16px;
+          ">☁</span>
+        </div>
+    
+        <div style="
+          position:absolute;
+          bottom:0;
+          left:0;
+          width:0;
+          height:0;
+          border-bottom:38px solid white;
+          border-right:38px solid transparent;
+        "></div>
+    
+        <div style="
+          position:absolute;
+          bottom:0;
+          left:0;
+          width:0;
+          height:0;
+          border-bottom:24px solid #ef4444;
+          border-right:24px solid transparent;
+        "></div>
+      </a>
+    
+      <p style="margin-top:12px; color:#666; font-size:12px;">
+        לעיון בלבד.
+      </p>
+    
+      <p style="margin-top:20px;">
+        תודה,<br>
+        Paragon group
+      </p>
+    </div>
+    `
 	});
 	    console.log("Tracking email sent:", emp.email, link);
 	  }
