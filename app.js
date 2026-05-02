@@ -427,6 +427,14 @@ app.post("/admin/send-mails", async (req, res) => {
 // =======================
 // ADMIN
 // =======================
+app.get("/admin/mail-status", (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.status(403).json({ error: "אין הרשאה" });
+  }
+
+  res.json(mailJob);
+});
+
 app.get("/admin", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
@@ -634,14 +642,17 @@ if (msg === "already") {
           </p>
 
           <table border="1" cellpadding="8">
-            <tr>
-              <th>שם</th>
-              <th>מייל</th>
-              <th>סטטוס</th>
-              <th>שגיאה</th>
-            </tr>
-            ${mailJobRows}
-          </table> 
+                  <tr>
+                    <th>שם</th>
+                    <th>מייל</th>
+                    <th>סטטוס</th>
+                    <th>שגיאה</th>
+                  </tr>
+
+                  <tbody id="mailJobTable">
+                    ${mailJobRows}
+                  </tbody>
+                </table>
 
         <script>
           function searchTable() {
@@ -655,6 +666,40 @@ if (msg === "already") {
           }
         </script>
       </div>
+        <script>
+
+      // mail auto-update
+
+      
+  async function updateMailStatus() {
+    try {
+      const res = await fetch("/admin/mail-status");
+      const data = await res.json();
+
+      const table = document.getElementById("mailJobTable");
+      if (!table) return;
+
+      table.innerHTML = "";
+
+        data.results.forEach(r => {
+          table.innerHTML +=
+            "<tr>" +
+            "<td>" + r.name + "</td>" +
+            "<td>" + r.email + "</td>" +
+            "<td>" + r.status + "</td>" +
+            "<td>" + (r.error || "") + "</td>" +
+            "</tr>";
+        });
+
+      setTimeout(updateMailStatus, 2000);
+
+    } catch (err) {
+      console.log(err);
+    }
+  }
+
+  updateMailStatus();
+</script>
       </body>
       </html>
     `);
