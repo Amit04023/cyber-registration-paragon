@@ -186,18 +186,30 @@ app.get("/", async (req, res) => {
 
   if (token) {
     try {
-      await pool.query(`
-        INSERT INTO clicks (token, employee_name, employee_email, ip, user_agent)
-        VALUES ($1, $2, $3, $4, $5)
-      `, [
-        token,
-        emp ? emp.name : "Unknown",
-        emp ? emp.email : "Unknown",
-        getClientIp(req),
-        req.headers["user-agent"]
-      ]);
+      const ip = getClientIp(req);
 
-      console.log("Click saved:", emp ? emp.email : token);
+      const alreadyClicked = await pool.query(
+        "SELECT 1 FROM clicks WHERE token = $1 AND ip = $2 LIMIT 1",
+        [token, ip]
+      );
+
+      if (alreadyClicked.rowCount === 0) {
+        await pool.query(`
+          INSERT INTO clicks (token, employee_name, employee_email, ip, user_agent)
+          VALUES ($1, $2, $3, $4, $5)
+        `, [
+          token,
+          emp ? emp.name : "Unknown",
+          emp ? emp.email : "Unknown",
+          ip,
+          req.headers["user-agent"]
+        ]);
+
+        console.log("Click saved:", emp ? emp.email : token);
+      } else {
+        console.log("Click already exists:", emp ? emp.email : token);
+      }
+
     } catch (err) {
       console.log("CLICK ERROR:", err);
     }
@@ -427,6 +439,8 @@ app.post("/admin/send-mails", async (req, res) => {
 // =======================
 // ADMIN
 // =======================
+
+
 app.get("/admin/mail-status", (req, res) => {
   if (!req.session.loggedIn) {
     return res.status(403).json({ error: "אין הרשאה" });
@@ -669,9 +683,7 @@ if (msg === "already") {
         <script>
 
       // mail auto-update
-
-      
-  async function updateMailStatus() {
+ async function updateMailStatus() {
     try {
       const res = await fetch("/admin/mail-status");
       const data = await res.json();
@@ -679,26 +691,53 @@ if (msg === "already") {
       const table = document.getElementById("mailJobTable");
       if (!table) return;
 
+      if (!data || !Array.isArray(data.results)) {
+        setTimeout(updateMailStatus, 2000);
+        return;
+      }
+
       table.innerHTML = "";
 
-        data.results.forEach(r => {
-          table.innerHTML +=
-            "<tr>" +
-            "<td>" + r.name + "</td>" +
-            "<td>" + r.email + "</td>" +
-            "<td>" + r.status + "</td>" +
-            "<td>" + (r.error || "") + "</td>" +
-            "</tr>";
-        });
+      data.results.forEach(r => {
+        const color =
+          r.status === "נשלח"
+            ? "#22c55e"
+            : r.status === "בתהליך"
+            ? "#f59e0b"
+            : "#ef4444";
 
-      setTimeout(updateMailStatus, 2000);
+        const icon =
+          r.status === "נשלח"
+            ? "✅"
+            : r.status === "בתהליך"
+            ? "⏳"
+            : "❌";
+
+        table.innerHTML +=
+          "<tr>" +
+          "<td>" + (r.name || "") + "</td>" +
+          "<td>" + (r.email || "") + "</td>" +
+          "<td style='color:" + color + "; font-weight:bold;'>" +
+          icon + " " + (r.status || "") +
+          "</td>" +
+          "<td style='" + (r.error ? "color:#ef4444;" : "") + "'>" +
+          (r.error || "") +
+          "</td>" +
+          "</tr>";
+      });
+
+      if (data.running) {
+        setTimeout(updateMailStatus, 2000);
+      }
 
     } catch (err) {
-      console.log(err);
+      console.log("MAIL STATUS ERROR:", err);
+      setTimeout(updateMailStatus, 3000);
     }
   }
 
   updateMailStatus();
+  
 </script>
       </body>
       </html>
