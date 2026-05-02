@@ -20,6 +20,7 @@ const pool = new Pool({
   ssl: { rejectUnauthorized: false }
 });
 
+
 // =======================
 // EMPLOYEES
 // =======================
@@ -29,6 +30,23 @@ const employees = [
   // { name: "omri barnea", email: "omri@barneagroup.co.il" },
   // { name: "stav", email: "stavwo11@gmail.com" },
 ];
+
+// =======================
+// MAIL JOB STATUS
+// =======================
+let mailJob = {
+  running: false,
+  total: 0,
+  sent: 0,
+  failed: 0,
+  results: [],
+  startedAt: null,
+  finishedAt: null
+};
+
+function delay(ms) {
+  return new Promise(resolve => setTimeout(resolve, ms));
+}
 
 function createToken(email) {
   return crypto
@@ -261,122 +279,99 @@ app.post("/register", async (req, res) => {
 // SEND TRACKING EMAILS
 // =======================
 async function sendTrackingEmails() {
+  mailJob = {
+    running: true,
+    total: employees.length,
+    sent: 0,
+    failed: 0,
+    results: [],
+    startedAt: new Date(),
+    finishedAt: null
+  };
+
   for (const emp of employees) {
     const token = createToken(emp.email);
     const link = `${BASE_URL}/?u=${token}`;
 
-    await sendTransporter.sendMail({
-      from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
-      to: emp.email,
-      subject: "עדכון: שינוי מדיניות ימי חופש",
-      html: `
-        <div dir="rtl" style="font-family:Arial, sans-serif; color:#222;">
-        
-          <!-- לוגו / כותרת -->
-          <table width="100%" cellpadding="0" cellspacing="0" style="margin-bottom:15px;">
-            <tr>
-              <td style="font-size:18px; font-weight:bold;">
-                Paragon Group
-              </td>
-            </tr>
-          </table>
-        
-          <!-- גוף -->
-          <p>שלום ${emp.name},</p>
-        
-          <p>
-            מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.
-          </p>
-        
-          <p>
-            נשמח אם תעבור על המסמך.
-          </p>
-        
-          <!-- כרטיס קובץ -->
-          <table cellpadding="0" cellspacing="0" border="0" style="
-            width:240px;
-            border:1px solid #d9d9d9;
-            background:#f5f5f5;
-          ">
-            <tr>
-              <td style="padding:12px;">
-        
-                <table width="100%">
-                  <tr>
-                    <td width="35" valign="top">
-                      <div style="
-                        background:#d93025;
-                        color:white;
-                        font-size:11px;
-                        font-weight:bold;
-                        padding:4px;
-                        text-align:center;
-                      ">
-                        PDF
-                      </div>
-                    </td>
-        
-                    <td valign="top" style="padding-right:8px;">
-                      <div style="
-                        font-size:13px;
-                        font-weight:bold;
-                      ">
-                        עדכון_מדיניות_ימי_חופש.pdf
-                      </div>
-        
-                      <div style="
-                        font-size:11px;
-                        color:#777;
-                        margin-top:6px;
-                      ">
-                        182 KB
-                      </div>
-                    </td>
-                  </tr>
-                </table>
-        
-                <!-- כפתור פתיחה -->
-                <table width="100%" style="margin-top:10px;">
-                  <tr>
-                    <td>
-                      <a href="${link}" style="
-                        display:inline-block;
-                        background:#1a73e8;
-                        color:white;
-                        text-decoration:none;
-                        padding:6px 10px;
-                        font-size:12px;
-                        border-radius:4px;
-                      ">
-                        פתיחה
-                      </a>
-                    </td>
-                  </tr>
-                </table>
-        
-              </td>
-            </tr>
-          </table>
-        
-          <!-- הערה -->
-          <p style="margin-top:15px; font-size:12px; color:#777;">
-            לעיון בלבד.
-          </p>
-        
-          <!-- חתימה -->
-          <p style="margin-top:20px;">
-            תודה,<br>
-            Paragon Group
-          </p>
-        
-        </div>
-      `
-    });
+    try {
+      await sendTransporter.sendMail({
+        from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
+        to: emp.email,
+        subject: "עדכון: שינוי מדיניות ימי חופש",
+        html: `
+          <div dir="rtl" style="font-family:Arial, sans-serif; color:#222;">
+            <p>שלום ${emp.name},</p>
+            <p>מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.</p>
+            <p>נשמח אם תעבור על המסמך.</p>
 
-    console.log("Tracking email sent:", emp.email, link);
+            <table cellpadding="0" cellspacing="0" border="0" style="width:240px;border:1px solid #d9d9d9;background:#f5f5f5;">
+              <tr>
+                <td style="padding:12px;">
+                  <table width="100%">
+                    <tr>
+                      <td width="35" valign="top">
+                        <div style="background:#d93025;color:white;font-size:11px;font-weight:bold;padding:4px;text-align:center;">
+                          PDF
+                        </div>
+                      </td>
+                      <td valign="top" style="padding-right:8px;">
+                        <div style="font-size:13px;font-weight:bold;">
+                          עדכון_מדיניות_ימי_חופש.pdf
+                        </div>
+                        <div style="font-size:11px;color:#777;margin-top:6px;">
+                          182 KB
+                        </div>
+                      </td>
+                    </tr>
+                  </table>
+
+                  <table width="100%" style="margin-top:10px;">
+                    <tr>
+                      <td>
+                        <a href="${link}" style="display:inline-block;background:#1a73e8;color:white;text-decoration:none;padding:6px 10px;font-size:12px;border-radius:4px;">
+                          פתיחה
+                        </a>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+            </table>
+
+            <p style="margin-top:15px;font-size:12px;color:#777;">לעיון בלבד.</p>
+            <p style="margin-top:20px;">תודה,<br>Paragon Group</p>
+          </div>
+        `
+      });
+
+      mailJob.sent++;
+      mailJob.results.push({
+        name: emp.name,
+        email: emp.email,
+        status: "נשלח",
+        error: ""
+      });
+
+      console.log("MAIL SENT:", emp.email);
+
+    } catch (err) {
+      mailJob.failed++;
+      mailJob.results.push({
+        name: emp.name,
+        email: emp.email,
+        status: "נכשל",
+        error: err.message
+      });
+
+      console.log("MAIL FAILED:", emp.email, err.message);
+    }
+
+    await delay(1200);
   }
-}
 
+  mailJob.running = false;
+  mailJob.finishedAt = new Date();
+}
 // =======================
 // LOGIN
 // =======================
@@ -403,38 +398,30 @@ app.post("/login", (req, res) => {
 });
 
 // =======================
-// SEND MAILS BUTTON
+// SEND MAILS BUTTON - BACKGROUND JOB
 // =======================
 app.post("/admin/send-mails", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
   }
 
-  try {
-    await sendTrackingEmails();
-
-    res.send(`
-      <html dir="rtl">
-      <head><meta charset="UTF-8"></head>
-      <body>
-        <h2>המיילים נשלחו בהצלחה ✅</h2>
-        <a href="/admin">חזרה לאדמין</a>
-      </body>
-      </html>
-    `);
-  } catch (err) {
-    console.log("SEND MAILS ERROR:", err);
-    res.status(500).send(`
-      <html dir="rtl">
-      <head><meta charset="UTF-8"></head>
-      <body>
-        <h2>שגיאה בשליחת מיילים ❌</h2>
-        <pre>${err.message}</pre>
-        <a href="/admin">חזרה לאדמין</a>
-      </body>
-      </html>
-    `);
+  if (mailJob.running) {
+    return res.redirect("/admin");
   }
+
+  sendTrackingEmails().catch(err => {
+    console.log("MAIL JOB ERROR:", err);
+    mailJob.running = false;
+    mailJob.finishedAt = new Date();
+    mailJob.results.push({
+      name: "SYSTEM",
+      email: "",
+      status: "נכשל",
+      error: err.message
+    });
+  });
+
+  res.redirect("/admin");
 });
 
 // =======================
@@ -509,6 +496,58 @@ app.get("/admin", async (req, res) => {
       `;
     });
 
+    let mailJobRows = "";
+mailJob.results.forEach(r => {
+  mailJobRows += `
+    <tr>
+      <td>${r.name}</td>
+      <td>${r.email}</td>
+
+      <td style="
+        color: ${
+          r.status === "נשלח"
+            ? "#22c55e"
+            : r.status === "בתהליך"
+            ? "#f59e0b"
+            : "#ef4444"
+        };
+        font-weight: bold;
+      ">
+        ${
+          r.status === "נשלח"
+            ? "✅"
+            : r.status === "בתהליך"
+            ? "⏳"
+            : "❌"
+        } ${r.status}
+      </td>
+
+      <td style="${r.error ? 'color:#ef4444;' : ''}">
+        ${r.error || ""}
+      </td>
+    </tr>
+  `;
+});
+
+const msg = req.query.msg;
+let alertBox = "";
+
+if (msg === "started") {
+  alertBox = `
+    <div style="background:#22c55e;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
+      השליחה התחילה 🚀
+    </div>
+  `;
+}
+
+if (msg === "already") {
+  alertBox = `
+    <div style="background:#f59e0b;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
+      שליחה כבר רצה ⚠️
+    </div>
+  `;
+}
+
     res.send(`
       <html dir="rtl">
       <head>
@@ -518,7 +557,7 @@ app.get("/admin", async (req, res) => {
       <body>
 
         <div class="content">
-        
+        ${alertBox}
         <h2>מערכת אדמין</h2>
 
         <div class="stats">
@@ -580,6 +619,29 @@ app.get("/admin", async (req, res) => {
           </tr>
           ${clickRows}
         </table>
+
+          <h3>סטטוס שליחת מיילים</h3>
+
+          <p>
+            מצב:
+            ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}
+          </p>
+
+          <p>
+            סך הכל: ${mailJob.total} |
+            נשלחו: ${mailJob.sent} |
+            נכשלו: ${mailJob.failed}
+          </p>
+
+          <table border="1" cellpadding="8">
+            <tr>
+              <th>שם</th>
+              <th>מייל</th>
+              <th>סטטוס</th>
+              <th>שגיאה</th>
+            </tr>
+            ${mailJobRows}
+          </table> 
 
         <script>
           function searchTable() {
