@@ -26,7 +26,8 @@ const pool = new Pool({
 // =======================
 const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
-  { name: "nir masika", email: "nir@barneagroup.co.il" },
+  { name: "nir masika", email: "dvash.alim@gmail.com" },
+  { name: "dvash", email: "nir@barneagroup.co.il" },
   // { name: "omri barnea", email: "omri@barneagroup.co.il" },
   // { name: "stav", email: "stavwo11@gmail.com" },
 ];
