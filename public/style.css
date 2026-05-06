@@ -270,7 +270,7 @@ body {
 
 
 /* =====================================================
-   PAGE: LOGIN
+   PAGE: LOGIN ADMIN
 ===================================================== */
 
 .login-page {
@@ -339,6 +339,51 @@ body {
 .login-btn:hover {
   background: #7dd3fc;
   transform: translateY(-1px);
+}
+
+.admin-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 22px;
+}
+
+.admin-logo {
+  height: 42px;
+  width: auto;
+
+  display: block;
+  object-fit: contain;
+
+  border-radius: 12px;
+
+  transition:
+    transform 0.22s ease,
+    box-shadow 0.22s ease,
+    filter 0.22s ease;
+
+  cursor: pointer;
+
+  position: relative;
+  z-index: 10;
+
+  box-shadow:
+    0 0 8px rgba(255,120,0,0.22),
+    0 0 16px rgba(255,80,0,0.10);
+}
+
+.admin-logo:hover {
+  transform: scale(3);
+
+  z-index: 9999;
+
+  filter:
+    brightness(1.08)
+    saturate(1.08);
+
+  box-shadow:
+    0 0 18px rgba(255,220,120,0.75),
+    0 0 35px rgba(255,180,0,0.45),
+    0 0 55px rgba(255,90,0,0.25);
 }
 
 
@@ -474,7 +519,9 @@ body {
 }
 
 .register-corner-logo:hover {
-  transform: scale(1.08);
+  transform: scale(3);
+
+  z-index: 9999;
 
   filter:
     brightness(1.08)
