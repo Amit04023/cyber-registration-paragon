@@ -81,6 +81,31 @@ a:hover {
   margin: 0;
 }
 
+.admin-logo {
+  width: 42px;
+  height: 42px;
+  object-fit: contain;
+
+  border-radius: 10px;
+
+  background: rgba(255,255,255,0.04);
+  padding: 4px;
+
+  box-shadow:
+    0 0 12px rgba(255,120,0,0.35),
+    0 0 25px rgba(255,80,0,0.18);
+
+  transition: 0.25s;
+}
+
+.admin-logo:hover {
+  transform: scale(1.06);
+
+  box-shadow:
+    0 0 18px rgba(255,140,0,0.55),
+    0 0 35px rgba(255,60,0,0.25);
+}
+
 /* BUTTONS */
 button,
 .logout-btn {
@@ -205,3 +230,4 @@ td form button {
 td form button:hover {
   background: #b91c1c !important;
 }
+
