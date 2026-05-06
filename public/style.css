@@ -443,38 +443,46 @@ body {
   direction: rtl;
 }
 
-
 .logo-wrap {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 20px;
+  position: fixed;
+
+  bottom: 20px;
+  left: 20px;
+
+  z-index: 999;
 }
 
 .site-logo {
-  width: 80px;
-  height: 80px;
+  width: 70px;
+  height: 70px;
+
   object-fit: contain;
 
-  border-radius: 18px;
+  border-radius: 14px;
 
   background: rgba(255,255,255,0.04);
-  padding: 10px;
+  padding: 6px;
 
   box-shadow:
-    0 0 15px rgba(255,120,0,0.25),
-    0 0 35px rgba(255,80,0,0.15);
+    0 0 18px rgba(255,120,0,0.35),
+    0 0 35px rgba(255,80,0,0.18);
 
   backdrop-filter: blur(6px);
+
+  opacity: 0.92;
 
   transition: 0.25s;
 }
 
 .site-logo:hover {
-  transform: scale(1.05);
+  transform: scale(1.08);
+
+  filter: brightness(1.15) saturate(1.25);
 
   box-shadow:
-    0 0 25px rgba(255,140,0,0.5),
-    0 0 50px rgba(255,60,0,0.25);
+    0 0 18px rgba(255,220,120,0.95),
+    0 0 40px rgba(255,180,0,0.75),
+    0 0 70px rgba(255,90,0,0.55);
 }
 
 

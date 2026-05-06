@@ -99,11 +99,14 @@ a:hover {
 }
 
 .admin-logo:hover {
-  transform: scale(1.06);
+  transform: scale(1.08);
+
+  filter: brightness(1.15) saturate(1.25);
 
   box-shadow:
-    0 0 18px rgba(255,140,0,0.55),
-    0 0 35px rgba(255,60,0,0.25);
+    0 0 18px rgba(255,220,120,0.95),
+    0 0 40px rgba(255,180,0,0.75),
+    0 0 70px rgba(255,90,0,0.55);
 }
 
 /* BUTTONS */

@@ -596,6 +596,9 @@ if (msg === "already") {
         </div>
 
         <div class="top-bar">
+        
+          <img src="/me.png" class="admin-logo">
+        
           <a href="/logout" class="logout-btn">🚪 יציאה</a>
 
           <form method="POST" action="/admin/send-mails">
