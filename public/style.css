@@ -348,7 +348,7 @@ body {
 }
 
 .admin-logo {
-  height: 42px;
+  height: 70px;
   width: auto;
 
   display: block;
@@ -520,6 +520,8 @@ body {
 
 .register-corner-logo:hover {
   transform: scale(3);
+
+  transform-origin: bottom left;
 
   z-index: 9999;
 
