@@ -88,8 +88,8 @@ a:hover {
 }
 
 .admin-logo {
-  width: 42px;
-  height: 42px;
+  width: 60px;
+  height: auto;
 
   object-fit: contain;
 
@@ -106,7 +106,7 @@ a:hover {
 }
 
 .admin-logo:hover {
-  transform: scale(1.08);
+  transform: scale(1.12) rotate(2deg);
 
   filter: brightness(1.15) saturate(1.25);
 

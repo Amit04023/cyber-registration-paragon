@@ -475,7 +475,7 @@ body {
 }
 
 .site-logo:hover {
-  transform: scale(1.08);
+  transform: scale(1.12) rotate(2deg);
 
   filter: brightness(1.15) saturate(1.25);
 
