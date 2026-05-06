@@ -81,9 +81,16 @@ a:hover {
   margin: 0;
 }
 
+.admin-logo-wrap {
+  display: flex;
+  justify-content: center;
+  margin-top: 20px;
+}
+
 .admin-logo {
   width: 42px;
   height: 42px;
+
   object-fit: contain;
 
   border-radius: 10px;
