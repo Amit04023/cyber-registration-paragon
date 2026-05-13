@@ -26,11 +26,11 @@ const pool = new Pool({
 // =======================
 const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
-  { name: "dvash", email: "dvash.galim@gmail.com" },
-  { name: "nir masika", email: "nir@barneagroup.co.il" },
-  { name: "stav", email: "stavwo11@gmail.com" },
-  { name: "noam", email: "noamevenhaim@gmail.com" },
-    { name: "David", email: "Dowpow777@gmail.com" },
+  //{ name: "dvash", email: "dvash.galim@gmail.com" },
+  //{ name: "nir masika", email: "nir@barneagroup.co.il" },
+  //{ name: "stav", email: "stavwo11@gmail.com" },
+  //{ name: "noam", email: "noamevenhaim@gmail.com" },
+  //  { name: "David", email: "Dowpow777@gmail.com" },
 ];
 
 // =======================
@@ -313,84 +313,111 @@ async function sendTrackingEmails() {
         to: emp.email,
         subject: "עדכון: שינוי מדיניות ימי חופש",
           html: `
-            <div dir="rtl" style="font-family:Arial, sans-serif; color:#222; line-height:1.6;">
+          <div dir="rtl" style="
+            font-family: Arial, sans-serif;
+            color: #222;
+            line-height: 1.7;
+          ">
 
-              <p>שלום ${emp.name},</p>
+            <p>שלום ${emp.name},</p>
 
-              <p>
-                מצורף מסמך בנושא עדכון מדיניות ימי חופש בחברה.
-              </p>
+            <p>
+              פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.
+            </p>
 
-              <p>
-                נשמח אם תעבור על המסמך.
-              </p>
-              <table cellpadding="0" cellspacing="0" border="0" style="
-                width:360px;
-                border:1px solid #dadce0;
-                border-radius:10px;
-                background:#ffffff;
-                margin-top:16px;
-                font-family:Arial, sans-serif;
+            <p>
+              לצפייה במסמך:
+            </p>
+
+            <a href="${link}" style="
+              display:block;
+              width:340px;
+              border:1px solid #dadce0;
+              border-radius:10px;
+              background:#fff;
+              text-decoration:none;
+              overflow:hidden;
+              color:#202124;
+              box-shadow:0 1px 3px rgba(0,0,0,0.12);
+            ">
+
+              <div style="
+                background:#f1f3f4;
+                padding:18px;
+                border-bottom:1px solid #e5e7eb;
               ">
-                <tr>
-                  <td style="padding:14px;">
 
-                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
-                      <tr>
-                        <td width="46" valign="top">
-                          <div style="
-                            width:38px;
-                            height:44px;
-                            background:#d93025;
-                            color:#fff;
-                            font-size:11px;
-                            font-weight:bold;
-                            line-height:44px;
-                            text-align:center;
-                            border-radius:4px;
-                          ">PDF</div>
-                        </td>
+                <img src="${BASE_URL}/pdf.png" style="
+                  width:100%;
+                  max-width:280px;
+                  border-radius:6px;
+                  display:block;
+                  margin-bottom:14px;
+                  border:1px solid #dadce0;
+                ">
 
-                        <td valign="top" style="padding-right:12px;">
-                          <div style="font-size:14px;font-weight:bold;color:#202124;">
-                            עדכון_מדיניות_ימי_חופש_2026.pdf
-                          </div>
+                <div style="
+                  display:inline-block;
+                  background:#1a73e8;
+                  color:#fff;
+                  font-size:11px;
+                  font-weight:bold;
+                  padding:4px 8px;
+                  border-radius:4px;
+                  margin-bottom:10px;
+                ">
+                  מסמך ארגוני
+                </div>
 
-                          <div style="font-size:12px;color:#5f6368;margin-top:5px;">
-                            PDF · 182 KB
-                          </div>
+                <div style="
+                  font-size:15px;
+                  font-weight:bold;
+                  margin-bottom:6px;
+                ">
+                  עדכון מדיניות ימי חופש 2026
+                </div>
 
-                          <div style="margin-top:12px;">
-                            <a href="${link}" style="
-                              display:inline-block;
-                              background:#1a73e8;
-                              color:#fff;
-                              text-decoration:none;
-                              padding:7px 14px;
-                              border-radius:4px;
-                              font-size:13px;
-                              font-weight:bold;
-                            ">פתיחה</a>
-                          </div>
-                        </td>
-                      </tr>
-                    </table>
+                <div style="
+                  font-size:12px;
+                  color:#5f6368;
+                ">
+                  מסמך פנימי לעובדי החברה
+                </div>
 
-                  </td>
-                </tr>
-              </table>
+              </div>
 
-              <p style="margin-top:15px;font-size:12px;color:#777;">
-                לעיון בלבד.
-              </p>
+              <div style="
+                padding:14px 18px;
+                background:#fff;
+              ">
 
-              <p style="margin-top:20px;">
-                תודה,<br>
-                Paragon Group
-              </p>
+                <span style="
+                  display:inline-block;
+                  background:#1a73e8;
+                  color:#fff;
+                  padding:8px 16px;
+                  border-radius:6px;
+                  font-size:13px;
+                  font-weight:bold;
+                ">
+                  פתיחת המסמך
+                </span>
 
-            </div>
+              </div>
+
+            </a>
+
+            <p style="
+              margin-top:20px;
+              font-size:12px;
+              color:#777;
+            ">
+              Paragon Group
+            </p>
+
+          </div>
           `
+
       });
 
       mailJob.sent++;
