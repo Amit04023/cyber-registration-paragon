@@ -348,14 +348,14 @@ async function sendTrackingEmails() {
               ">
 
                 <img src="${BASE_URL}/pdf.png" style="
-                  width:90px;
+                  width:50px;
                   height:auto;
 
                   display:block;
 
-                  margin-bottom:14px;
+                  margin-bottom:8px;
 
-                  border-radius:6px;
+                  border-radius:2px;
                 ">
 
                 <div style="
