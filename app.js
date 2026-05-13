@@ -331,7 +331,7 @@ async function sendTrackingEmails() {
 
             <a href="${link}" style="
               display:block;
-              width:100px;
+              width:290px;
               border:1px solid #dadce0;
               border-radius:10px;
               background:#fff;
