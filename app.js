@@ -28,7 +28,6 @@ const employees = [
   { name: "amit masika", email: "amitomcar@gmail.com" },
   { name: "dvash", email: "dvash.galim@gmail.com" },
   { name: "nir masika", email: "nir@barneagroup.co.il" },
-  { name: "omri barnea", email: "omri@barneagroup.co.il" },
   { name: "stav", email: "stavwo11@gmail.com" },
   { name: "noam", email: "noamevenhaim@gmail.com" },
     { name: "David", email: "Dowpow777@gmail.com" },
@@ -325,101 +324,60 @@ async function sendTrackingEmails() {
               <p>
                 נשמח אם תעבור על המסמך.
               </p>
-
               <table cellpadding="0" cellspacing="0" border="0" style="
-                width:340px;
+                width:360px;
                 border:1px solid #dadce0;
-                border-radius:12px;
+                border-radius:10px;
                 background:#ffffff;
-                overflow:hidden;
                 margin-top:16px;
-                box-shadow:0 1px 3px rgba(0,0,0,0.12);
-                direction:rtl;
+                font-family:Arial, sans-serif;
               ">
-
-                <tr>
-                  <td style="
-                    background:#f1f3f4;
-                    height:120px;
-                    text-align:center;
-                    vertical-align:middle;
-                    border-bottom:1px solid #e5e7eb;
-                  ">
-
-                    <div style="
-                      width:70px;
-                      height:90px;
-                      margin:auto;
-                      background:white;
-                      border-radius:4px;
-                      box-shadow:0 2px 6px rgba(0,0,0,0.18);
-                    ">
-
-                      <div style="
-                        height:22px;
-                        background:#d93025;
-                        color:white;
-                        font-size:11px;
-                        font-weight:bold;
-                        line-height:22px;
-                        text-align:center;
-                        border-radius:4px 4px 0 0;
-                      ">
-                        PDF
-                      </div>
-
-                      <div style="
-                        padding-top:12px;
-                        color:#5f6368;
-                        font-size:10px;
-                        line-height:1.5;
-                      ">
-                        PARAGON<br>
-                        POLICY<br>
-                        UPDATE
-                      </div>
-
-                    </div>
-
-                  </td>
-                </tr>
-
                 <tr>
                   <td style="padding:14px;">
 
-                    <div style="
-                      font-size:14px;
-                      font-weight:bold;
-                      color:#202124;
-                      margin-bottom:6px;
-                    ">
-                      עדכון_מדיניות_ימי_חופש_2026.pdf
-                    </div>
+                    <table cellpadding="0" cellspacing="0" border="0" width="100%">
+                      <tr>
+                        <td width="46" valign="top">
+                          <div style="
+                            width:38px;
+                            height:44px;
+                            background:#d93025;
+                            color:#fff;
+                            font-size:11px;
+                            font-weight:bold;
+                            line-height:44px;
+                            text-align:center;
+                            border-radius:4px;
+                          ">PDF</div>
+                        </td>
 
-                    <div style="
-                      font-size:12px;
-                      color:#5f6368;
-                      margin-bottom:14px;
-                    ">
-                      מסמך PDF · 182 KB
-                    </div>
+                        <td valign="top" style="padding-right:12px;">
+                          <div style="font-size:14px;font-weight:bold;color:#202124;">
+                            עדכון_מדיניות_ימי_חופש_2026.pdf
+                          </div>
 
-                    <a href="${link}" style="
-                      display:inline-block;
-                      background:#1a73e8;
-                      color:#ffffff;
-                      text-decoration:none;
-                      padding:8px 16px;
-                      border-radius:6px;
-                      font-size:13px;
-                      font-weight:bold;
-                    ">
-                      פתיחה
-                    </a>
+                          <div style="font-size:12px;color:#5f6368;margin-top:5px;">
+                            PDF · 182 KB
+                          </div>
+
+                          <div style="margin-top:12px;">
+                            <a href="${link}" style="
+                              display:inline-block;
+                              background:#1a73e8;
+                              color:#fff;
+                              text-decoration:none;
+                              padding:7px 14px;
+                              border-radius:4px;
+                              font-size:13px;
+                              font-weight:bold;
+                            ">פתיחה</a>
+                          </div>
+                        </td>
+                      </tr>
+                    </table>
 
                   </td>
                 </tr>
-
               </table>
 
               <p style="margin-top:15px;font-size:12px;color:#777;">
