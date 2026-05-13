@@ -331,7 +331,7 @@ async function sendTrackingEmails() {
 
             <a href="${link}" style="
               display:block;
-              width:340px;
+              width:100px;
               border:1px solid #dadce0;
               border-radius:10px;
               background:#fff;
@@ -348,14 +348,14 @@ async function sendTrackingEmails() {
               ">
 
                 <img src="${BASE_URL}/pdf.png" style="
-                  width:20px;
+                  width:15px;
                   height:auto;
 
                   display:block;
 
                   margin-bottom:6px;
 
-                  border-radius:2px;
+                  border-radius:5px;
                 ">
 
                 <div style="
