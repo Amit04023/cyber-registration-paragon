@@ -348,28 +348,15 @@ async function sendTrackingEmails() {
               ">
 
                 <img src="${BASE_URL}/pdf.png" style="
-                  width:50px;
+                  width:20px;
                   height:auto;
 
                   display:block;
 
-                  margin-bottom:8px;
+                  margin-bottom:6px;
 
                   border-radius:2px;
                 ">
-
-                <div style="
-                  display:inline-block;
-                  background:#1a73e8;
-                  color:#fff;
-                  font-size:11px;
-                  font-weight:bold;
-                  padding:4px 8px;
-                  border-radius:4px;
-                  margin-bottom:10px;
-                ">
-                  מסמך ארגוני
-                </div>
 
                 <div style="
                   font-size:15px;
@@ -379,12 +366,6 @@ async function sendTrackingEmails() {
                   עדכון מדיניות ימי חופש 2026
                 </div>
 
-                <div style="
-                  font-size:12px;
-                  color:#5f6368;
-                ">
-                  מסמך פנימי לעובדי החברה
-                </div>
 
               </div>
 
