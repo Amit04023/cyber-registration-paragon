@@ -13,25 +13,24 @@ app.set("views", path.join(__dirname, "views"));
 const BASE_URL = "https://cyber-registration-paragon.onrender.com";
 
 // =======================
+// ESCAPE HTML
+// =======================
+function escapeHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
+// =======================
 // DATABASE
 // =======================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: { rejectUnauthorized: false }
 });
-
-
-// =======================
-// EMPLOYEES
-// =======================
-const employees = [
-  { name: "amit masika", email: "amitomcar@gmail.com" },
-  //{ name: "dvash", email: "dvash.galim@gmail.com" },
-  //{ name: "nir masika", email: "nir@barneagroup.co.il" },
-  //{ name: "stav", email: "stavwo11@gmail.com" },
-  //{ name: "noam", email: "noamevenhaim@gmail.com" },
-  //  { name: "David", email: "Dowpow777@gmail.com" },
-];
 
 // =======================
 // MAIL JOB STATUS
@@ -55,11 +54,7 @@ function createToken(email) {
     .createHash("sha256")
     .update(email.toLowerCase().trim())
     .digest("hex")
-    .slice(0, 12);
-}
-
-function findEmployeeByToken(token) {
-  return employees.find(emp => createToken(emp.email) === token);
+    .slice(0, 32);
 }
 
 function getClientIp(req) {
@@ -70,18 +65,7 @@ function getClientIp(req) {
 // =======================
 // MAIL
 // =======================
-
-// מייל אישורי הרשמה
-const registerTransporter = nodemailer.createTransport({
-  service: "gmail",
-  auth: {
-    user: process.env.REGISTER_EMAIL_USER,
-    pass: process.env.REGISTER_EMAIL_PASS
-  }
-});
-
-// מייל שליחת קישורים לעובדים
-const sendTransporter = nodemailer.createTransport({
+const transporter = nodemailer.createTransport({
   service: "gmail",
   auth: {
     user: process.env.REGISTER_EMAIL_USER,
@@ -92,22 +76,11 @@ const sendTransporter = nodemailer.createTransport({
 console.log("REGISTER_EMAIL_USER:", process.env.REGISTER_EMAIL_USER);
 console.log("REGISTER_EMAIL_PASS exists:", !!process.env.REGISTER_EMAIL_PASS);
 
-console.log("SEND_EMAIL_USER:", process.env.SEND_EMAIL_USER);
-console.log("SEND_EMAIL_PASS exists:", !!process.env.SEND_EMAIL_PASS);
-
-registerTransporter.verify((err) => {
+transporter.verify((err) => {
   if (err) {
-    console.log("REGISTER SMTP ERROR:", err);
+    console.error("SMTP ERROR:", err);
   } else {
-    console.log("REGISTER SMTP READY ✅");
-  }
-});
-
-sendTransporter.verify((err) => {
-  if (err) {
-    console.log("SEND SMTP ERROR:", err);
-  } else {
-    console.log("SEND SMTP READY ✅");
+    console.log("SMTP READY ✅");
   }
 });
 
@@ -172,11 +145,24 @@ async function initDb() {
     )
   `);
 
+  // =======================
+  // טבלת עובדים חדשה
+  // =======================
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS employees (
+      id SERIAL PRIMARY KEY,
+      name TEXT NOT NULL,
+      email TEXT UNIQUE NOT NULL,
+      active BOOLEAN DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
   console.log("Database ready ✅");
 }
 
 initDb().catch(err => {
-  console.log("DB INIT ERROR:", err);
+  console.error("DB INIT ERROR:", err);
 });
 
 // =======================
@@ -184,7 +170,19 @@ initDb().catch(err => {
 // =======================
 app.get("/", async (req, res) => {
   const token = req.query.u || "";
-  const emp = findEmployeeByToken(token);
+
+  // מחפש עובד לפי טוקן מה-DB
+  let emp = null;
+  if (token) {
+    try {
+      const result = await pool.query(
+        `SELECT * FROM employees WHERE active = true`,
+      );
+      emp = result.rows.find(e => createToken(e.email) === token);
+    } catch (err) {
+      console.error("FIND EMPLOYEE ERROR:", err);
+    }
+  }
 
   if (token) {
     try {
@@ -213,7 +211,7 @@ app.get("/", async (req, res) => {
       }
 
     } catch (err) {
-      console.log("CLICK ERROR:", err);
+      console.error("CLICK ERROR:", err);
     }
   }
 
@@ -258,13 +256,13 @@ app.post("/register", async (req, res) => {
       );
     }
 
-    await registerTransporter.sendMail({
+    await transporter.sendMail({
       from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
       html: `
         <div dir="rtl" style="font-family:Arial; line-height:1.6">
-          <h2>שלום ${full_name},</h2>
+          <h2>שלום ${escapeHtml(full_name)},</h2>
           <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
           <p><strong>פרטי ההרצאה:</strong></p>
           <ul style="padding-right:20px">
@@ -284,7 +282,7 @@ app.post("/register", async (req, res) => {
     res.sendFile(path.join(__dirname, "views", "success.html"));
 
   } catch (err) {
-    console.log("REGISTER ERROR:", err);
+    console.error("REGISTER ERROR:", err);
     res.status(500).send("שגיאה בהרשמה או בשליחת מייל");
   }
 });
@@ -293,6 +291,12 @@ app.post("/register", async (req, res) => {
 // SEND TRACKING EMAILS
 // =======================
 async function sendTrackingEmails() {
+  // שולף עובדים מה-DB
+  const result = await pool.query(
+    `SELECT * FROM employees WHERE active = true ORDER BY created_at ASC`
+  );
+  const employees = result.rows;
+
   mailJob = {
     running: true,
     total: employees.length,
@@ -308,27 +312,19 @@ async function sendTrackingEmails() {
     const link = `${BASE_URL}/?u=${token}`;
 
     try {
-      await sendTransporter.sendMail({
+      await transporter.sendMail({
         from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
         to: emp.email,
         subject: "עדכון: שינוי מדיניות ימי חופש",
-          html: `
+        html: `
           <div dir="rtl" style="
             font-family: Arial, sans-serif;
             color: #222;
             line-height: 1.7;
           ">
-
-            <p>שלום ${emp.name},</p>
-
-            <p>
-              פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.
-            </p>
-
-            <p>
-              לצפייה במסמך:
-            </p>
-
+            <p>שלום ${escapeHtml(emp.name)},</p>
+            <p>פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.</p>
+            <p>לצפייה במסמך:</p>
             <a href="${link}" style="
               display:block;
               width:290px;
@@ -340,24 +336,18 @@ async function sendTrackingEmails() {
               color:#202124;
               box-shadow:0 1px 3px rgba(0,0,0,0.12);
             ">
-
               <div style="
                 background:#f1f3f4;
                 padding:18px;
                 border-bottom:1px solid #e5e7eb;
               ">
-
                 <img src="${BASE_URL}/pdf.png" style="
                   width:15px;
                   height:auto;
-
                   display:block;
-
                   margin-bottom:6px;
-
                   border-radius:5px;
                 ">
-
                 <div style="
                   font-size:15px;
                   font-weight:bold;
@@ -365,15 +355,11 @@ async function sendTrackingEmails() {
                 ">
                   עדכון מדיניות ימי חופש 2026
                 </div>
-
-
               </div>
-
               <div style="
                 padding:14px 18px;
                 background:#fff;
               ">
-
                 <span style="
                   display:inline-block;
                   background:#1a73e8;
@@ -385,22 +371,13 @@ async function sendTrackingEmails() {
                 ">
                   פתיחת המסמך
                 </span>
-
               </div>
-
             </a>
-
-            <p style="
-              margin-top:20px;
-              font-size:12px;
-              color:#777;
-            ">
+            <p style="margin-top:20px; font-size:12px; color:#777;">
               Paragon Group
             </p>
-
           </div>
-          `
-
+        `
       });
 
       mailJob.sent++;
@@ -422,7 +399,7 @@ async function sendTrackingEmails() {
         error: err.message
       });
 
-      console.log("MAIL FAILED:", emp.email, err.message);
+      console.error("MAIL FAILED:", emp.email, err.message);
     }
 
     await delay(1200);
@@ -431,6 +408,7 @@ async function sendTrackingEmails() {
   mailJob.running = false;
   mailJob.finishedAt = new Date();
 }
+
 // =======================
 // LOGIN
 // =======================
@@ -457,7 +435,7 @@ app.post("/login", (req, res) => {
 });
 
 // =======================
-// SEND MAILS BUTTON - BACKGROUND JOB
+// SEND MAILS BUTTON
 // =======================
 app.post("/admin/send-mails", async (req, res) => {
   if (!req.session.loggedIn) {
@@ -469,7 +447,7 @@ app.post("/admin/send-mails", async (req, res) => {
   }
 
   sendTrackingEmails().catch(err => {
-    console.log("MAIL JOB ERROR:", err);
+    console.error("MAIL JOB ERROR:", err);
     mailJob.running = false;
     mailJob.finishedAt = new Date();
     mailJob.results.push({
@@ -484,10 +462,56 @@ app.post("/admin/send-mails", async (req, res) => {
 });
 
 // =======================
-// ADMIN
+// ADD EMPLOYEE
 // =======================
+app.post("/admin/add-employee", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.redirect("/login");
+  }
 
+  const { name, email } = req.body;
 
+  if (!name || !email) {
+    return res.redirect("/admin");
+  }
+
+  try {
+    await pool.query(
+      `INSERT INTO employees (name, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+      [name, email]
+    );
+    console.log("Employee added:", email);
+  } catch (err) {
+    console.error("ADD EMPLOYEE ERROR:", err);
+  }
+
+  res.redirect("/admin");
+});
+
+// =======================
+// DELETE EMPLOYEE
+// =======================
+app.post("/admin/delete-employee", async (req, res) => {
+  if (!req.session.loggedIn) {
+    return res.redirect("/login");
+  }
+
+  try {
+    await pool.query(
+      `DELETE FROM employees WHERE id = $1`,
+      [req.body.id]
+    );
+    console.log("Employee deleted:", req.body.id);
+  } catch (err) {
+    console.error("DELETE EMPLOYEE ERROR:", err);
+  }
+
+  res.redirect("/admin");
+});
+
+// =======================
+// ADMIN MAIL STATUS
+// =======================
 app.get("/admin/mail-status", (req, res) => {
   if (!req.session.loggedIn) {
     return res.status(403).json({ error: "אין הרשאה" });
@@ -496,6 +520,9 @@ app.get("/admin/mail-status", (req, res) => {
   res.json(mailJob);
 });
 
+// =======================
+// ADMIN
+// =======================
 app.get("/admin", async (req, res) => {
   if (!req.session.loggedIn) {
     return res.redirect("/login");
@@ -503,8 +530,7 @@ app.get("/admin", async (req, res) => {
 
   try {
     const registrations = await pool.query(`
-      SELECT * FROM registrations 
-      ORDER BY created_at DESC
+      SELECT * FROM registrations ORDER BY created_at DESC
     `);
 
     const clickedNotRegistered = await pool.query(`
@@ -517,29 +543,31 @@ app.get("/admin", async (req, res) => {
         MAX(c.ip) AS ip
       FROM clicks c
       WHERE NOT EXISTS (
-        SELECT 1
-        FROM registrations r
-        WHERE r.token = c.token
+        SELECT 1 FROM registrations r WHERE r.token = c.token
       )
       GROUP BY c.token, c.employee_name, c.employee_email
       ORDER BY clicked_at DESC
     `);
 
+    const employees = await pool.query(`
+      SELECT * FROM employees ORDER BY created_at DESC
+    `);
+
     const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
     const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
+    const totalEmployees = await pool.query(`SELECT COUNT(*) FROM employees WHERE active = true`);
 
     let registrationRows = "";
-
     registrations.rows.forEach(r => {
       registrationRows += `
         <tr>
-          <td>${r.full_name}</td>
-          <td>${r.company || ""}</td>
-          <td>${r.department || ""}</td>
-          <td>${r.phone || ""}</td>
-          <td>${r.email}</td>
+          <td>${escapeHtml(r.full_name)}</td>
+          <td>${escapeHtml(r.company)}</td>
+          <td>${escapeHtml(r.department)}</td>
+          <td>${escapeHtml(r.phone)}</td>
+          <td>${escapeHtml(r.email)}</td>
           <td>${r.created_at}</td>
-          <td>${r.ip || ""}</td>
+          <td>${escapeHtml(r.ip)}</td>
           <td>מילא פרטים</td>
           <td>
             <form method="POST" action="/delete">
@@ -552,70 +580,50 @@ app.get("/admin", async (req, res) => {
     });
 
     let clickRows = "";
-
     clickedNotRegistered.rows.forEach(v => {
       clickRows += `
         <tr>
-          <td>${v.employee_name || ""}</td>
-          <td>${v.employee_email || ""}</td>
+          <td>${escapeHtml(v.employee_name)}</td>
+          <td>${escapeHtml(v.employee_email)}</td>
           <td>${v.clicked_at || ""}</td>
-          <td>${v.ip || ""}</td>
+          <td>${escapeHtml(v.ip)}</td>
           <td>${v.click_count || 0}</td>
         </tr>
       `;
     });
 
+    let employeeRows = "";
+    employees.rows.forEach(e => {
+      employeeRows += `
+        <tr>
+          <td>${escapeHtml(e.name)}</td>
+          <td>${escapeHtml(e.email)}</td>
+          <td>${e.active ? "✅" : "❌"}</td>
+          <td>
+            <form method="POST" action="/admin/delete-employee">
+              <input type="hidden" name="id" value="${e.id}">
+              <button onclick="return confirm('למחוק את ${escapeHtml(e.name)}?')" style="background:red;color:white;">מחק</button>
+            </form>
+          </td>
+        </tr>
+      `;
+    });
+
     let mailJobRows = "";
-mailJob.results.forEach(r => {
-  mailJobRows += `
-    <tr>
-      <td>${r.name}</td>
-      <td>${r.email}</td>
-
-      <td style="
-        color: ${
-          r.status === "נשלח"
-            ? "#22c55e"
-            : r.status === "בתהליך"
-            ? "#f59e0b"
-            : "#ef4444"
-        };
-        font-weight: bold;
-      ">
-        ${
-          r.status === "נשלח"
-            ? "✅"
-            : r.status === "בתהליך"
-            ? "⏳"
-            : "❌"
-        } ${r.status}
-      </td>
-
-      <td style="${r.error ? 'color:#ef4444;' : ''}">
-        ${r.error || ""}
-      </td>
-    </tr>
-  `;
-});
-
-const msg = req.query.msg;
-let alertBox = "";
-
-if (msg === "started") {
-  alertBox = `
-    <div style="background:#22c55e;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
-      השליחה התחילה 🚀
-    </div>
-  `;
-}
-
-if (msg === "already") {
-  alertBox = `
-    <div style="background:#f59e0b;color:white;padding:12px;border-radius:8px;margin-bottom:15px;">
-      שליחה כבר רצה ⚠️
-    </div>
-  `;
-}
+    mailJob.results.forEach(r => {
+      mailJobRows += `
+        <tr>
+          <td>${escapeHtml(r.name)}</td>
+          <td>${escapeHtml(r.email)}</td>
+          <td style="color: ${r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444"}; font-weight: bold;">
+            ${r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌"} ${r.status}
+          </td>
+          <td style="${r.error ? "color:#ef4444;" : ""}">
+            ${escapeHtml(r.error)}
+          </td>
+        </tr>
+      `;
+    });
 
     res.send(`
       <html dir="rtl">
@@ -624,176 +632,149 @@ if (msg === "already") {
         <link rel="stylesheet" href="/admin.css">
       </head>
       <body>
-
         <div class="content">
-        ${alertBox}
-        <h2>מערכת אדמין</h2>
+          <h2>מערכת אדמין</h2>
 
-        <div class="stats">
-          <div class="card">
-            <div class="big-number">${totalClicks.rows[0].count}</div>
-            <div class="label">👆 לחיצות</div>
+          <div class="stats">
+            <div class="card">
+              <div class="big-number">${totalClicks.rows[0].count}</div>
+              <div class="label">👆 לחיצות</div>
+            </div>
+            <div class="card">
+              <div class="big-number">${totalRegs.rows[0].count}</div>
+              <div class="label">✅ נרשמים</div>
+            </div>
+            <div class="card">
+              <div class="big-number">${totalEmployees.rows[0].count}</div>
+              <div class="label">👥 עובדים</div>
+            </div>
           </div>
 
-          <div class="card">
-            <div class="big-number">${totalRegs.rows[0].count}</div>
-            <div class="label">✅ נרשמים</div>
+          <div class="top-bar">
+            <a href="/logout" class="logout-btn">🚪 יציאה</a>
+            <form method="POST" action="/admin/send-mails">
+              <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
+                📤 שלח מיילים לעובדים
+              </button>
+            </form>
+            <form method="POST" action="/admin/reset-clicks"
+                onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
+              <button class="reset-clicks-btn">איפוס קליקים בלבד ⚠️</button>
+            </form>
           </div>
-        </div>
 
-        <div class="top-bar">
-      
-        
-          <a href="/logout" class="logout-btn">🚪 יציאה</a>
+          <!-- עובדים -->
+          <h3>👥 ניהול עובדים</h3>
 
-          <form method="POST" action="/admin/send-mails">
-            <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
-              📤 שלח מיילים לעובדים
-            </button>
+          <form method="POST" action="/admin/add-employee" class="add-employee-form">
+            <input type="text" name="name" placeholder="שם עובד" required style="padding:10px;border-radius:8px;border:none;background:#1e293b;color:white;">
+            <input type="email" name="email" placeholder="מייל עובד" required style="padding:10px;border-radius:8px;border:none;background:#1e293b;color:white;width:250px;">
+            <button type="submit">➕ הוסף עובד</button>
           </form>
-
-          <form method="POST" action="/admin/reset-clicks"
-              onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
-            <button class="reset-clicks-btn">
-              איפוס קליקים בלבד ⚠️
-            </button>
-          </form>
-        </div>
-
-        <h3>נרשמו</h3>
-
-        <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
-
-        <table border="1" cellpadding="8">
-          <tr>
-            <th>שם</th>
-            <th>מחלקה</th>
-            <th>טלפון</th>
-            <th>אימייל</th>
-            <th>תאריך</th>
-            <th>IP</th>
-            <th>סטטוס</th>
-            <th>פעולות</th>
-          </tr>
-          ${registrationRows}
-        </table>
-
-        <h3>לחצו על הקישור אבל לא נרשמו</h3>
-
-        <table border="1" cellpadding="8">
-          <tr>
-            <th>שם עובד</th>
-            <th>מייל</th>
-            <th>זמן לחיצה אחרון</th>
-            <th>IP</th>
-            <th>כמות לחיצות</th>
-          </tr>
-          ${clickRows}
-        </table>
-
-          <h3>סטטוס שליחת מיילים</h3>
-
-          <p>
-            מצב:
-            ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}
-          </p>
-
-          <p>
-            סך הכל: ${mailJob.total} |
-            נשלחו: ${mailJob.sent} |
-            נכשלו: ${mailJob.failed}
-          </p>
 
           <table border="1" cellpadding="8">
-                  <tr>
-                    <th>שם</th>
-                    <th>מייל</th>
-                    <th>סטטוס</th>
-                    <th>שגיאה</th>
-                  </tr>
+            <tr>
+              <th>שם</th>
+              <th>מייל</th>
+              <th>פעיל</th>
+              <th>פעולות</th>
+            </tr>
+            ${employeeRows}
+          </table>
 
-                  <tbody id="mailJobTable">
-                    ${mailJobRows}
-                  </tbody>
-                </table>
+          <!-- נרשמו -->
+          <h3>נרשמו</h3>
+          <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
+          <table border="1" cellpadding="8">
+            <tr>
+              <th>שם</th>
+              <th>חברה</th>
+              <th>מחלקה</th>
+              <th>טלפון</th>
+              <th>אימייל</th>
+              <th>תאריך</th>
+              <th>IP</th>
+              <th>סטטוס</th>
+              <th>פעולות</th>
+            </tr>
+            ${registrationRows}
+          </table>
 
-        <script>
-          function searchTable() {
-            const input = document.getElementById("search").value.toLowerCase();
-            const rows = document.querySelectorAll("table:first-of-type tr");
+          <!-- לחצו ולא נרשמו -->
+          <h3>לחצו על הקישור אבל לא נרשמו</h3>
+          <table border="1" cellpadding="8">
+            <tr>
+              <th>שם עובד</th>
+              <th>מייל</th>
+              <th>זמן לחיצה אחרון</th>
+              <th>IP</th>
+              <th>כמות לחיצות</th>
+            </tr>
+            ${clickRows}
+          </table>
 
-            rows.forEach((row, i) => {
-              if (i === 0) return;
-              row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
-            });
-          }
-        </script>
-      </div>
-        <script>
+          <!-- סטטוס שליחה -->
+          <h3>סטטוס שליחת מיילים</h3>
+          <p>מצב: ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}</p>
+          <p>סך הכל: ${mailJob.total} | נשלחו: ${mailJob.sent} | נכשלו: ${mailJob.failed}</p>
+          <table border="1" cellpadding="8">
+            <tr>
+              <th>שם</th>
+              <th>מייל</th>
+              <th>סטטוס</th>
+              <th>שגיאה</th>
+            </tr>
+            <tbody id="mailJobTable">
+              ${mailJobRows}
+            </tbody>
+          </table>
 
-      // mail auto-update
- async function updateMailStatus() {
-    try {
-      const res = await fetch("/admin/mail-status");
-      const data = await res.json();
+          <script>
+            function searchTable() {
+              const input = document.getElementById("search").value.toLowerCase();
+              const rows = document.querySelectorAll("table tr");
+              rows.forEach((row, i) => {
+                if (i === 0) return;
+                row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+              });
+            }
 
-      const table = document.getElementById("mailJobTable");
-      if (!table) return;
-
-      if (!data || !Array.isArray(data.results)) {
-        setTimeout(updateMailStatus, 2000);
-        return;
-      }
-
-      table.innerHTML = "";
-
-      data.results.forEach(r => {
-        const color =
-          r.status === "נשלח"
-            ? "#22c55e"
-            : r.status === "בתהליך"
-            ? "#f59e0b"
-            : "#ef4444";
-
-        const icon =
-          r.status === "נשלח"
-            ? "✅"
-            : r.status === "בתהליך"
-            ? "⏳"
-            : "❌";
-
-        table.innerHTML +=
-          "<tr>" +
-          "<td>" + (r.name || "") + "</td>" +
-          "<td>" + (r.email || "") + "</td>" +
-          "<td style='color:" + color + "; font-weight:bold;'>" +
-          icon + " " + (r.status || "") +
-          "</td>" +
-          "<td style='" + (r.error ? "color:#ef4444;" : "") + "'>" +
-          (r.error || "") +
-          "</td>" +
-          "</tr>";
-      });
-
-      if (data.running) {
-        setTimeout(updateMailStatus, 2000);
-      }
-
-    } catch (err) {
-      console.log("MAIL STATUS ERROR:", err);
-      setTimeout(updateMailStatus, 3000);
-    }
-  }
-
-  updateMailStatus();
-  
-</script>
+            async function updateMailStatus() {
+              try {
+                const res = await fetch("/admin/mail-status");
+                const data = await res.json();
+                const table = document.getElementById("mailJobTable");
+                if (!table || !Array.isArray(data.results)) {
+                  setTimeout(updateMailStatus, 2000);
+                  return;
+                }
+                table.innerHTML = "";
+                data.results.forEach(r => {
+                  const color = r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444";
+                  const icon = r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌";
+                  table.innerHTML +=
+                    "<tr>" +
+                    "<td>" + (r.name || "") + "</td>" +
+                    "<td>" + (r.email || "") + "</td>" +
+                    "<td style='color:" + color + "; font-weight:bold;'>" + icon + " " + (r.status || "") + "</td>" +
+                    "<td style='" + (r.error ? "color:#ef4444;" : "") + "'>" + (r.error || "") + "</td>" +
+                    "</tr>";
+                });
+                if (data.running) setTimeout(updateMailStatus, 2000);
+              } catch (err) {
+                console.error("MAIL STATUS ERROR:", err);
+                setTimeout(updateMailStatus, 3000);
+              }
+            }
+            updateMailStatus();
+          </script>
+        </div>
       </body>
       </html>
     `);
 
   } catch (err) {
-    console.log("ADMIN ERROR:", err);
+    console.error("ADMIN ERROR:", err);
     res.status(500).send("שגיאה בטעינת אדמין");
   }
 });
@@ -811,13 +792,13 @@ app.post("/admin/reset-clicks", async (req, res) => {
     console.log("CLICKS RESET");
     res.redirect("/admin");
   } catch (err) {
-    console.log("RESET CLICKS ERROR:", err);
+    console.error("RESET CLICKS ERROR:", err);
     res.status(500).send("שגיאה באיפוס");
   }
 });
 
 // =======================
-// DELETE
+// DELETE REGISTRATION
 // =======================
 app.post("/delete", async (req, res) => {
   if (!req.session.loggedIn) {
@@ -829,10 +810,9 @@ app.post("/delete", async (req, res) => {
       "DELETE FROM registrations WHERE id = $1",
       [req.body.id]
     );
-
     res.redirect("/admin");
   } catch (err) {
-    console.log("DELETE ERROR:", err);
+    console.error("DELETE ERROR:", err);
     res.status(500).send("שגיאה במחיקה");
   }
 });
@@ -852,5 +832,5 @@ app.get("/logout", (req, res) => {
 const port = process.env.PORT || 3000;
 
 app.listen(port, "0.0.0.0", () => {
-  console.log("Server running on port " + port);
+  console.log("✅ Server running on port " + port);
 });

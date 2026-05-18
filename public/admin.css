@@ -207,3 +207,30 @@ td form button:hover {
   background: #b91c1c !important;
 }
 
+/* =====================================================
+   ADD EMPLOYEE FORM
+===================================================== */
+.add-employee-form {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+
+.add-employee-form input {
+  padding: 10px 14px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(17, 24, 39, 0.8);
+  color: white;
+  outline: none;
+  font-size: 14px;
+}
+
+.add-employee-form input:focus {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+.add-employee-form input[type="email"] {
+  width: 250px;
+}
+
