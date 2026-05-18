@@ -172,7 +172,7 @@ button:hover,
   gap: 8px;
   margin-bottom: 25px;
   border-bottom: 2px solid rgba(56, 189, 248, 0.2);
-  padding-bottom: 0;
+  flex-wrap: wrap;
 }
 
 .tab-btn {
@@ -217,11 +217,13 @@ button:hover,
 .add-employee-form {
   display: flex;
   gap: 10px;
-  margin-bottom: 20px;
+  margin-bottom: 10px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
-.add-employee-form input {
+.add-employee-form input[type="text"],
+.add-employee-form input[type="email"] {
   padding: 10px 14px;
   border-radius: 10px;
   border: none;
@@ -231,12 +233,50 @@ button:hover,
   font-size: 14px;
 }
 
+.add-employee-form input[type="email"] {
+  width: 250px;
+}
+
 .add-employee-form input:focus {
   box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
 }
 
-.add-employee-form input[type="email"] {
-  width: 250px;
+/* =====================================================
+   SETTINGS FORM
+===================================================== */
+
+.settings-form {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  max-width: 500px;
+}
+
+.settings-form label {
+  font-size: 13px;
+  color: #94a3b8;
+  margin-bottom: 2px;
+}
+
+.settings-form input {
+  padding: 12px 14px;
+  border-radius: 10px;
+  border: none;
+  background: rgba(17, 24, 39, 0.8);
+  color: white;
+  outline: none;
+  font-size: 14px;
+  width: 100%;
+}
+
+.settings-form input:focus {
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.25);
+}
+
+.settings-form button {
+  width: fit-content;
+  background: linear-gradient(135deg, #059669, #047857);
+  margin-top: 6px;
 }
 
 /* =====================================================

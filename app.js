@@ -5,8 +5,12 @@ const session = require("express-session");
 const pgSession = require("connect-pg-simple")(session);
 const path = require("path");
 const crypto = require("crypto");
+const multer = require("multer");
+const csv = require("csv-parse/sync");
 
 const app = express();
+const upload = multer({ storage: multer.memoryStorage() });
+
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
@@ -152,6 +156,22 @@ async function initDb() {
     )
   `);
 
+  await pool.query(`
+    CREATE TABLE IF NOT EXISTS mail_settings (
+      id INTEGER PRIMARY KEY DEFAULT 1,
+      subject TEXT NOT NULL DEFAULT 'עדכון: שינוי מדיניות ימי חופש',
+      intro TEXT NOT NULL DEFAULT 'פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.',
+      file_name TEXT NOT NULL DEFAULT 'מדיניות_ימי_חופש_2026.pdf',
+      file_size TEXT NOT NULL DEFAULT '879 KB',
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    )
+  `);
+
+  await pool.query(`
+    INSERT INTO mail_settings (id) VALUES (1)
+    ON CONFLICT (id) DO NOTHING
+  `);
+
   console.log("Database ready ✅");
 }
 
@@ -260,6 +280,9 @@ async function sendTrackingEmails() {
   const result = await pool.query(`SELECT * FROM employees WHERE active = true ORDER BY created_at ASC`);
   const employees = result.rows;
 
+  const settingsResult = await pool.query(`SELECT * FROM mail_settings WHERE id = 1`);
+  const settings = settingsResult.rows[0];
+
   mailJob = {
     running: true,
     total: employees.length,
@@ -278,23 +301,35 @@ async function sendTrackingEmails() {
       await transporter.sendMail({
         from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
         to: emp.email,
-        subject: "עדכון: שינוי מדיניות ימי חופש",
+        subject: settings.subject,
         html: `
-          <div dir="rtl" style="font-family:Arial,sans-serif;color:#222;line-height:1.7;">
-            <p>שלום ${escapeHtml(emp.name)},</p>
-            <p>פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.</p>
-            <p>לצפייה במסמך:</p>
-            <a href="${link}" style="display:block;width:290px;border:1px solid #dadce0;border-radius:10px;background:#fff;text-decoration:none;overflow:hidden;color:#202124;box-shadow:0 1px 3px rgba(0,0,0,0.12);">
-              <div style="background:#f1f3f4;padding:18px;border-bottom:1px solid #e5e7eb;">
-                <img src="${BASE_URL}/pdf.png" style="width:15px;height:auto;display:block;margin-bottom:6px;border-radius:5px;">
-                <div style="font-size:15px;font-weight:bold;margin-bottom:6px;">עדכון מדיניות ימי חופש 2026</div>
-              </div>
-              <div style="padding:14px 18px;background:#fff;">
-                <span style="display:inline-block;background:#1a73e8;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:bold;">פתיחת המסמך</span>
-              </div>
-            </a>
-            <p style="margin-top:20px;font-size:12px;color:#777;">Paragon Group</p>
-          </div>
+<div dir="rtl" style="font-family: Arial, sans-serif; color: #222; line-height: 1.7; max-width: 480px;">
+  <p>שלום ${escapeHtml(emp.name)},</p>
+  <p>${escapeHtml(settings.intro)}</p>
+  <p style="font-size: 12px; color: #888;">Last changed: Thursday, March 17, 2022</p>
+  <a href="${link}" style="text-decoration: none; color: inherit; display: inline-block; margin: 4px 0;">
+    <table cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border: 1px solid #d6d6d6; border-radius: 12px; min-width: 240px; max-width: 290px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+      <tr>
+        <td style="padding: 12px 8px 12px 14px; vertical-align: middle; width: 48px;">
+          <svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg">
+            <path d="M4 0 H26 L38 12 V42 Q38 46 34 46 H4 Q0 46 0 42 V4 Q0 0 4 0Z" fill="#e8f0fe"/>
+            <path d="M26 0 L38 12 H28 Q26 12 26 10 Z" fill="#a8c4f5"/>
+            <rect x="5" y="28" width="28" height="12" rx="2" fill="#ea4335"/>
+            <text x="19" y="38" font-family="Arial" font-size="8" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
+            <rect x="6" y="16" width="18" height="2" rx="1" fill="#a8c4f5"/>
+            <rect x="6" y="21" width="22" height="2" rx="1" fill="#a8c4f5"/>
+          </svg>
+        </td>
+        <td style="padding: 12px 8px 12px 4px; vertical-align: middle;">
+          <div style="font-size: 13px; font-weight: 600; color: #0078d4; white-space: nowrap;">${escapeHtml(settings.file_name)}</div>
+          <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(settings.file_size)}</div>
+        </td>
+        <td style="padding: 12px 14px 12px 8px; vertical-align: middle; color: #aaa; font-size: 16px;">&#8964;</td>
+      </tr>
+    </table>
+  </a>
+  <p style="margin-top: 20px; font-size: 12px; color: #999;">Paragon Group</p>
+</div>
         `
       });
 
@@ -370,7 +405,43 @@ app.post("/admin/add-employee", async (req, res) => {
     console.error("ADD EMPLOYEE ERROR:", err);
   }
 
-  res.redirect("/admin#employees");
+  res.redirect("/admin");
+});
+
+// =======================
+// IMPORT EMPLOYEES FROM CSV
+// =======================
+app.post("/admin/import-csv", upload.single("csvfile"), async (req, res) => {
+  if (!req.session.loggedIn) return res.redirect("/login");
+
+  try {
+    const content = req.file.buffer.toString("utf-8");
+    const records = csv.parse(content, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true
+    });
+
+    let added = 0;
+    for (const row of records) {
+      const name = row["name"] || row["שם"] || row["Name"] || "";
+      const email = row["email"] || row["מייל"] || row["Email"] || "";
+
+      if (name && email) {
+        await pool.query(
+          `INSERT INTO employees (name, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
+          [name, email]
+        );
+        added++;
+      }
+    }
+
+    console.log(`CSV imported: ${added} employees`);
+  } catch (err) {
+    console.error("CSV IMPORT ERROR:", err);
+  }
+
+  res.redirect("/admin");
 });
 
 // =======================
@@ -385,7 +456,27 @@ app.post("/admin/delete-employee", async (req, res) => {
     console.error("DELETE EMPLOYEE ERROR:", err);
   }
 
-  res.redirect("/admin#employees");
+  res.redirect("/admin");
+});
+
+// =======================
+// UPDATE MAIL SETTINGS
+// =======================
+app.post("/admin/mail-settings", async (req, res) => {
+  if (!req.session.loggedIn) return res.redirect("/login");
+
+  const { subject, intro, file_name, file_size } = req.body;
+
+  try {
+    await pool.query(
+      `UPDATE mail_settings SET subject=$1, intro=$2, file_name=$3, file_size=$4, updated_at=NOW() WHERE id=1`,
+      [subject, intro, file_name, file_size]
+    );
+  } catch (err) {
+    console.error("MAIL SETTINGS ERROR:", err);
+  }
+
+  res.redirect("/admin");
 });
 
 // =======================
@@ -413,9 +504,19 @@ app.get("/admin", async (req, res) => {
       ORDER BY clicked_at DESC
     `);
     const employees = await pool.query(`SELECT * FROM employees ORDER BY created_at DESC`);
+    const mailSettings = await pool.query(`SELECT * FROM mail_settings WHERE id = 1`);
+    const settings = mailSettings.rows[0];
+
     const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
     const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
     const totalEmployees = await pool.query(`SELECT COUNT(*) FROM employees WHERE active = true`);
+
+    // סטטיסטיקות לגרף
+    const clicked = parseInt(totalClicks.rows[0].count);
+    const registered = parseInt(totalRegs.rows[0].count);
+    const total = parseInt(totalEmployees.rows[0].count);
+    const notClicked = Math.max(0, total - clicked);
+    const clickedNotReg = Math.max(0, clicked - registered);
 
     let registrationRows = "";
     registrations.rows.forEach(r => {
@@ -484,6 +585,7 @@ app.get("/admin", async (req, res) => {
         <meta charset="UTF-8">
         <title>אדמין</title>
         <link rel="stylesheet" href="/admin.css">
+        <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
       </head>
       <body>
         <div class="content">
@@ -518,20 +620,34 @@ app.get("/admin", async (req, res) => {
 
           <!-- TABS -->
           <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('employees')">👥 עובדים</button>
-            <button class="tab-btn" onclick="showTab('registrations')">✅ נרשמים</button>
-            <button class="tab-btn" onclick="showTab('clicks')">👆 קליקים</button>
-            <button class="tab-btn" onclick="showTab('mails')">📤 מיילים</button>
+            <button class="tab-btn active" onclick="showTab('employees', this)">👥 עובדים (${total})</button>
+            <button class="tab-btn" onclick="showTab('registrations', this)">✅ נרשמים (${registered})</button>
+            <button class="tab-btn" onclick="showTab('clicks', this)">👆 קליקים (${clicked})</button>
+            <button class="tab-btn" onclick="showTab('mails', this)">📤 מיילים</button>
+            <button class="tab-btn" onclick="showTab('settings', this)">⚙️ הגדרות</button>
+            <button class="tab-btn" onclick="showTab('stats', this)">📊 גרף</button>
           </div>
 
           <!-- TAB: עובדים -->
           <div id="tab-employees" class="tab-content active">
             <h3>👥 ניהול עובדים</h3>
+
+            <!-- הוספה ידנית -->
             <form method="POST" action="/admin/add-employee" class="add-employee-form">
               <input type="text" name="name" placeholder="שם עובד" required>
               <input type="email" name="email" placeholder="מייל עובד" required>
-              <button type="submit">➕ הוסף עובד</button>
+              <button type="submit">➕ הוסף</button>
             </form>
+
+            <!-- ייבוא CSV -->
+            <form method="POST" action="/admin/import-csv" enctype="multipart/form-data" class="add-employee-form" style="margin-top:10px;">
+              <input type="file" name="csvfile" accept=".csv" required style="color:white;">
+              <button type="submit" style="background: linear-gradient(135deg, #059669, #047857);">📥 ייבוא CSV</button>
+            </form>
+            <p style="font-size:12px;color:#94a3b8;margin-top:6px;">
+              קובץ CSV חייב לכלול עמודות: <strong>name</strong> ו-<strong>email</strong> (או בעברית: שם, מייל)
+            </p>
+
             <table>
               <tr>
                 <th>שם</th>
@@ -595,19 +711,46 @@ app.get("/admin", async (req, res) => {
             </table>
           </div>
 
+          <!-- TAB: הגדרות מייל -->
+          <div id="tab-settings" class="tab-content">
+            <h3>⚙️ עריכת תוכן המייל</h3>
+            <form method="POST" action="/admin/mail-settings" class="settings-form">
+              <label>נושא המייל</label>
+              <input type="text" name="subject" value="${escapeHtml(settings.subject)}" required>
+
+              <label>תוכן המייל (פתיח)</label>
+              <input type="text" name="intro" value="${escapeHtml(settings.intro)}" required>
+
+              <label>שם הקובץ</label>
+              <input type="text" name="file_name" value="${escapeHtml(settings.file_name)}" required>
+
+              <label>גודל הקובץ</label>
+              <input type="text" name="file_size" value="${escapeHtml(settings.file_size)}" required>
+
+              <button type="submit">💾 שמור שינויים</button>
+            </form>
+          </div>
+
+          <!-- TAB: גרף -->
+          <div id="tab-stats" class="tab-content">
+            <h3>📊 סטטיסטיקות</h3>
+            <div style="max-width: 380px; margin: 0 auto;">
+              <canvas id="statsChart"></canvas>
+            </div>
+          </div>
+
         </div>
 
         <script>
           // TABS
-          function showTab(name) {
+          function showTab(name, btn) {
             document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
             document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
             document.getElementById("tab-" + name).classList.add("active");
-            event.target.classList.add("active");
+            btn.classList.add("active");
             localStorage.setItem("activeTab", name);
           }
 
-          // שמור tab פעיל
           const savedTab = localStorage.getItem("activeTab");
           if (savedTab) {
             const tabEl = document.getElementById("tab-" + savedTab);
@@ -616,7 +759,9 @@ app.get("/admin", async (req, res) => {
               document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
               tabEl.classList.add("active");
               document.querySelectorAll(".tab-btn").forEach(btn => {
-                if (btn.getAttribute("onclick").includes(savedTab)) btn.classList.add("active");
+                if (btn.getAttribute("onclick") && btn.getAttribute("onclick").includes("'" + savedTab + "'")) {
+                  btn.classList.add("active");
+                }
               });
             }
           }
@@ -656,6 +801,28 @@ app.get("/admin", async (req, res) => {
             }
           }
           updateMailStatus();
+
+          // CHART
+          const ctx = document.getElementById("statsChart").getContext("2d");
+          new Chart(ctx, {
+            type: "doughnut",
+            data: {
+              labels: ["נרשמו ✅", "לחצו ולא נרשמו 👆", "לא לחצו ❌"],
+              datasets: [{
+                data: [${registered}, ${clickedNotReg}, ${notClicked}],
+                backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"],
+                borderWidth: 2,
+                borderColor: "#111827"
+              }]
+            },
+            options: {
+              plugins: {
+                legend: {
+                  labels: { color: "#e5e7eb", font: { size: 14 } }
+                }
+              }
+            }
+          });
         </script>
       </body>
       </html>
