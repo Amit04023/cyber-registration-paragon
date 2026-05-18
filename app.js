@@ -73,9 +73,6 @@ const transporter = nodemailer.createTransport({
   }
 });
 
-console.log("REGISTER_EMAIL_USER:", process.env.REGISTER_EMAIL_USER);
-console.log("REGISTER_EMAIL_PASS exists:", !!process.env.REGISTER_EMAIL_PASS);
-
 transporter.verify((err) => {
   if (err) {
     console.error("SMTP ERROR:", err);
@@ -145,9 +142,6 @@ async function initDb() {
     )
   `);
 
-  // =======================
-  // טבלת עובדים חדשה
-  // =======================
   await pool.query(`
     CREATE TABLE IF NOT EXISTS employees (
       id SERIAL PRIMARY KEY,
@@ -170,24 +164,18 @@ initDb().catch(err => {
 // =======================
 app.get("/", async (req, res) => {
   const token = req.query.u || "";
-
-  // מחפש עובד לפי טוקן מה-DB
   let emp = null;
+
   if (token) {
     try {
-      const result = await pool.query(
-        `SELECT * FROM employees WHERE active = true`,
-      );
+      const result = await pool.query(`SELECT * FROM employees WHERE active = true`);
       emp = result.rows.find(e => createToken(e.email) === token);
     } catch (err) {
       console.error("FIND EMPLOYEE ERROR:", err);
     }
-  }
 
-  if (token) {
     try {
       const ip = getClientIp(req);
-
       const alreadyClicked = await pool.query(
         "SELECT 1 FROM clicks WHERE token = $1 AND ip = $2 LIMIT 1",
         [token, ip]
@@ -204,12 +192,8 @@ app.get("/", async (req, res) => {
           ip,
           req.headers["user-agent"]
         ]);
-
         console.log("Click saved:", emp ? emp.email : token);
-      } else {
-        console.log("Click already exists:", emp ? emp.email : token);
       }
-
     } catch (err) {
       console.error("CLICK ERROR:", err);
     }
@@ -231,29 +215,13 @@ app.post("/register", async (req, res) => {
     const ip = getClientIp(req);
 
     await pool.query(
-      `
-      INSERT INTO registrations 
-      (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-      `,
-      [
-        full_name,
-        company,
-        phone,
-        email,
-        token || null,
-        ip,
-        req.headers["user-agent"],
-        "submitted",
-        department
-      ]
+      `INSERT INTO registrations (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)`,
+      [full_name, company, phone, email, token || null, ip, req.headers["user-agent"], "submitted", department]
     );
 
     if (token) {
-      await pool.query(
-        `UPDATE clicks SET registered = true WHERE token = $1`,
-        [token]
-      );
+      await pool.query(`UPDATE clicks SET registered = true WHERE token = $1`, [token]);
     }
 
     await transporter.sendMail({
@@ -277,8 +245,6 @@ app.post("/register", async (req, res) => {
       `
     });
 
-    console.log("Registration email sent to:", email);
-
     res.sendFile(path.join(__dirname, "views", "success.html"));
 
   } catch (err) {
@@ -291,10 +257,7 @@ app.post("/register", async (req, res) => {
 // SEND TRACKING EMAILS
 // =======================
 async function sendTrackingEmails() {
-  // שולף עובדים מה-DB
-  const result = await pool.query(
-    `SELECT * FROM employees WHERE active = true ORDER BY created_at ASC`
-  );
+  const result = await pool.query(`SELECT * FROM employees WHERE active = true ORDER BY created_at ASC`);
   const employees = result.rows;
 
   mailJob = {
@@ -317,88 +280,31 @@ async function sendTrackingEmails() {
         to: emp.email,
         subject: "עדכון: שינוי מדיניות ימי חופש",
         html: `
-          <div dir="rtl" style="
-            font-family: Arial, sans-serif;
-            color: #222;
-            line-height: 1.7;
-          ">
+          <div dir="rtl" style="font-family:Arial,sans-serif;color:#222;line-height:1.7;">
             <p>שלום ${escapeHtml(emp.name)},</p>
             <p>פורסם עדכון בנושא מדיניות ימי חופש לעובדי החברה.</p>
             <p>לצפייה במסמך:</p>
-            <a href="${link}" style="
-              display:block;
-              width:290px;
-              border:1px solid #dadce0;
-              border-radius:10px;
-              background:#fff;
-              text-decoration:none;
-              overflow:hidden;
-              color:#202124;
-              box-shadow:0 1px 3px rgba(0,0,0,0.12);
-            ">
-              <div style="
-                background:#f1f3f4;
-                padding:18px;
-                border-bottom:1px solid #e5e7eb;
-              ">
-                <img src="${BASE_URL}/pdf.png" style="
-                  width:15px;
-                  height:auto;
-                  display:block;
-                  margin-bottom:6px;
-                  border-radius:5px;
-                ">
-                <div style="
-                  font-size:15px;
-                  font-weight:bold;
-                  margin-bottom:6px;
-                ">
-                  עדכון מדיניות ימי חופש 2026
-                </div>
+            <a href="${link}" style="display:block;width:290px;border:1px solid #dadce0;border-radius:10px;background:#fff;text-decoration:none;overflow:hidden;color:#202124;box-shadow:0 1px 3px rgba(0,0,0,0.12);">
+              <div style="background:#f1f3f4;padding:18px;border-bottom:1px solid #e5e7eb;">
+                <img src="${BASE_URL}/pdf.png" style="width:15px;height:auto;display:block;margin-bottom:6px;border-radius:5px;">
+                <div style="font-size:15px;font-weight:bold;margin-bottom:6px;">עדכון מדיניות ימי חופש 2026</div>
               </div>
-              <div style="
-                padding:14px 18px;
-                background:#fff;
-              ">
-                <span style="
-                  display:inline-block;
-                  background:#1a73e8;
-                  color:#fff;
-                  padding:8px 16px;
-                  border-radius:6px;
-                  font-size:13px;
-                  font-weight:bold;
-                ">
-                  פתיחת המסמך
-                </span>
+              <div style="padding:14px 18px;background:#fff;">
+                <span style="display:inline-block;background:#1a73e8;color:#fff;padding:8px 16px;border-radius:6px;font-size:13px;font-weight:bold;">פתיחת המסמך</span>
               </div>
             </a>
-            <p style="margin-top:20px; font-size:12px; color:#777;">
-              Paragon Group
-            </p>
+            <p style="margin-top:20px;font-size:12px;color:#777;">Paragon Group</p>
           </div>
         `
       });
 
       mailJob.sent++;
-      mailJob.results.push({
-        name: emp.name,
-        email: emp.email,
-        status: "נשלח",
-        error: ""
-      });
-
+      mailJob.results.push({ name: emp.name, email: emp.email, status: "נשלח", error: "" });
       console.log("MAIL SENT:", emp.email);
 
     } catch (err) {
       mailJob.failed++;
-      mailJob.results.push({
-        name: emp.name,
-        email: emp.email,
-        status: "נכשל",
-        error: err.message
-      });
-
+      mailJob.results.push({ name: emp.name, email: emp.email, status: "נכשל", error: err.message });
       console.error("MAIL FAILED:", emp.email, err.message);
     }
 
@@ -422,40 +328,25 @@ app.get("/register-page", (req, res) => {
 
 app.post("/login", (req, res) => {
   const { user, password } = req.body;
-
-  if (
-    user === process.env.ADMIN_USER &&
-    password === process.env.ADMIN_PASSWORD
-  ) {
+  if (user === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
     req.session.loggedIn = true;
     return res.redirect("/admin");
   }
-
   res.send("פרטים שגויים");
 });
 
 // =======================
-// SEND MAILS BUTTON
+// SEND MAILS
 // =======================
 app.post("/admin/send-mails", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.redirect("/login");
-  }
-
-  if (mailJob.running) {
-    return res.redirect("/admin");
-  }
+  if (!req.session.loggedIn) return res.redirect("/login");
+  if (mailJob.running) return res.redirect("/admin");
 
   sendTrackingEmails().catch(err => {
     console.error("MAIL JOB ERROR:", err);
     mailJob.running = false;
     mailJob.finishedAt = new Date();
-    mailJob.results.push({
-      name: "SYSTEM",
-      email: "",
-      status: "נכשל",
-      error: err.message
-    });
+    mailJob.results.push({ name: "SYSTEM", email: "", status: "נכשל", error: err.message });
   });
 
   res.redirect("/admin");
@@ -465,58 +356,43 @@ app.post("/admin/send-mails", async (req, res) => {
 // ADD EMPLOYEE
 // =======================
 app.post("/admin/add-employee", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.redirect("/login");
-  }
+  if (!req.session.loggedIn) return res.redirect("/login");
 
   const { name, email } = req.body;
-
-  if (!name || !email) {
-    return res.redirect("/admin");
-  }
+  if (!name || !email) return res.redirect("/admin");
 
   try {
     await pool.query(
       `INSERT INTO employees (name, email) VALUES ($1, $2) ON CONFLICT (email) DO NOTHING`,
       [name, email]
     );
-    console.log("Employee added:", email);
   } catch (err) {
     console.error("ADD EMPLOYEE ERROR:", err);
   }
 
-  res.redirect("/admin");
+  res.redirect("/admin#employees");
 });
 
 // =======================
 // DELETE EMPLOYEE
 // =======================
 app.post("/admin/delete-employee", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.redirect("/login");
-  }
+  if (!req.session.loggedIn) return res.redirect("/login");
 
   try {
-    await pool.query(
-      `DELETE FROM employees WHERE id = $1`,
-      [req.body.id]
-    );
-    console.log("Employee deleted:", req.body.id);
+    await pool.query(`DELETE FROM employees WHERE id = $1`, [req.body.id]);
   } catch (err) {
     console.error("DELETE EMPLOYEE ERROR:", err);
   }
 
-  res.redirect("/admin");
+  res.redirect("/admin#employees");
 });
 
 // =======================
-// ADMIN MAIL STATUS
+// MAIL STATUS
 // =======================
 app.get("/admin/mail-status", (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.status(403).json({ error: "אין הרשאה" });
-  }
-
+  if (!req.session.loggedIn) return res.status(403).json({ error: "אין הרשאה" });
   res.json(mailJob);
 });
 
@@ -524,35 +400,19 @@ app.get("/admin/mail-status", (req, res) => {
 // ADMIN
 // =======================
 app.get("/admin", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.redirect("/login");
-  }
+  if (!req.session.loggedIn) return res.redirect("/login");
 
   try {
-    const registrations = await pool.query(`
-      SELECT * FROM registrations ORDER BY created_at DESC
-    `);
-
+    const registrations = await pool.query(`SELECT * FROM registrations ORDER BY created_at DESC`);
     const clickedNotRegistered = await pool.query(`
-      SELECT
-        c.token,
-        c.employee_name,
-        c.employee_email,
-        MAX(c.clicked_at) AS clicked_at,
-        COUNT(*) AS click_count,
-        MAX(c.ip) AS ip
+      SELECT c.token, c.employee_name, c.employee_email,
+        MAX(c.clicked_at) AS clicked_at, COUNT(*) AS click_count, MAX(c.ip) AS ip
       FROM clicks c
-      WHERE NOT EXISTS (
-        SELECT 1 FROM registrations r WHERE r.token = c.token
-      )
+      WHERE NOT EXISTS (SELECT 1 FROM registrations r WHERE r.token = c.token)
       GROUP BY c.token, c.employee_name, c.employee_email
       ORDER BY clicked_at DESC
     `);
-
-    const employees = await pool.query(`
-      SELECT * FROM employees ORDER BY created_at DESC
-    `);
-
+    const employees = await pool.query(`SELECT * FROM employees ORDER BY created_at DESC`);
     const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
     const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
     const totalEmployees = await pool.query(`SELECT COUNT(*) FROM employees WHERE active = true`);
@@ -568,15 +428,13 @@ app.get("/admin", async (req, res) => {
           <td>${escapeHtml(r.email)}</td>
           <td>${r.created_at}</td>
           <td>${escapeHtml(r.ip)}</td>
-          <td>מילא פרטים</td>
           <td>
             <form method="POST" action="/delete">
               <input type="hidden" name="id" value="${r.id}">
-              <button onclick="return confirm('אתה בטוח?')" style="background:red;color:white;">מחק</button>
+              <button onclick="return confirm('אתה בטוח?')">מחק</button>
             </form>
           </td>
-        </tr>
-      `;
+        </tr>`;
     });
 
     let clickRows = "";
@@ -588,8 +446,7 @@ app.get("/admin", async (req, res) => {
           <td>${v.clicked_at || ""}</td>
           <td>${escapeHtml(v.ip)}</td>
           <td>${v.click_count || 0}</td>
-        </tr>
-      `;
+        </tr>`;
     });
 
     let employeeRows = "";
@@ -602,39 +459,37 @@ app.get("/admin", async (req, res) => {
           <td>
             <form method="POST" action="/admin/delete-employee">
               <input type="hidden" name="id" value="${e.id}">
-              <button onclick="return confirm('למחוק את ${escapeHtml(e.name)}?')" style="background:red;color:white;">מחק</button>
+              <button onclick="return confirm('למחוק?')">מחק</button>
             </form>
           </td>
-        </tr>
-      `;
+        </tr>`;
     });
 
     let mailJobRows = "";
     mailJob.results.forEach(r => {
+      const color = r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444";
+      const icon = r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌";
       mailJobRows += `
         <tr>
           <td>${escapeHtml(r.name)}</td>
           <td>${escapeHtml(r.email)}</td>
-          <td style="color: ${r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444"}; font-weight: bold;">
-            ${r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌"} ${r.status}
-          </td>
-          <td style="${r.error ? "color:#ef4444;" : ""}">
-            ${escapeHtml(r.error)}
-          </td>
-        </tr>
-      `;
+          <td style="color:${color};font-weight:bold;">${icon} ${r.status}</td>
+          <td style="${r.error ? "color:#ef4444;" : ""}">${escapeHtml(r.error)}</td>
+        </tr>`;
     });
 
     res.send(`
       <html dir="rtl">
       <head>
         <meta charset="UTF-8">
+        <title>אדמין</title>
         <link rel="stylesheet" href="/admin.css">
       </head>
       <body>
         <div class="content">
           <h2>מערכת אדמין</h2>
 
+          <!-- STATS -->
           <div class="stats">
             <div class="card">
               <div class="big-number">${totalClicks.rows[0].count}</div>
@@ -650,125 +505,158 @@ app.get("/admin", async (req, res) => {
             </div>
           </div>
 
+          <!-- TOP BAR -->
           <div class="top-bar">
             <a href="/logout" class="logout-btn">🚪 יציאה</a>
             <form method="POST" action="/admin/send-mails">
-              <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">
-                📤 שלח מיילים לעובדים
-              </button>
+              <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">📤 שלח מיילים</button>
             </form>
-            <form method="POST" action="/admin/reset-clicks"
-                onsubmit="return confirm('בטוח לאפס רק את הקליקים?')">
-              <button class="reset-clicks-btn">איפוס קליקים בלבד ⚠️</button>
+            <form method="POST" action="/admin/reset-clicks" onsubmit="return confirm('בטוח לאפס?')">
+              <button class="reset-clicks-btn">איפוס קליקים ⚠️</button>
             </form>
           </div>
 
-          <!-- עובדים -->
-          <h3>👥 ניהול עובדים</h3>
+          <!-- TABS -->
+          <div class="tabs">
+            <button class="tab-btn active" onclick="showTab('employees')">👥 עובדים</button>
+            <button class="tab-btn" onclick="showTab('registrations')">✅ נרשמים</button>
+            <button class="tab-btn" onclick="showTab('clicks')">👆 קליקים</button>
+            <button class="tab-btn" onclick="showTab('mails')">📤 מיילים</button>
+          </div>
 
-          <form method="POST" action="/admin/add-employee" class="add-employee-form">
-            <input type="text" name="name" placeholder="שם עובד" required style="padding:10px;border-radius:8px;border:none;background:#1e293b;color:white;">
-            <input type="email" name="email" placeholder="מייל עובד" required style="padding:10px;border-radius:8px;border:none;background:#1e293b;color:white;width:250px;">
-            <button type="submit">➕ הוסף עובד</button>
-          </form>
+          <!-- TAB: עובדים -->
+          <div id="tab-employees" class="tab-content active">
+            <h3>👥 ניהול עובדים</h3>
+            <form method="POST" action="/admin/add-employee" class="add-employee-form">
+              <input type="text" name="name" placeholder="שם עובד" required>
+              <input type="email" name="email" placeholder="מייל עובד" required>
+              <button type="submit">➕ הוסף עובד</button>
+            </form>
+            <table>
+              <tr>
+                <th>שם</th>
+                <th>מייל</th>
+                <th>פעיל</th>
+                <th>פעולות</th>
+              </tr>
+              ${employeeRows}
+            </table>
+          </div>
 
-          <table border="1" cellpadding="8">
-            <tr>
-              <th>שם</th>
-              <th>מייל</th>
-              <th>פעיל</th>
-              <th>פעולות</th>
-            </tr>
-            ${employeeRows}
-          </table>
+          <!-- TAB: נרשמים -->
+          <div id="tab-registrations" class="tab-content">
+            <h3>✅ נרשמים</h3>
+            <input type="text" id="search" placeholder="🔍 חפש..." onkeyup="searchTable()">
+            <table id="reg-table">
+              <tr>
+                <th>שם</th>
+                <th>חברה</th>
+                <th>מחלקה</th>
+                <th>טלפון</th>
+                <th>אימייל</th>
+                <th>תאריך</th>
+                <th>IP</th>
+                <th>פעולות</th>
+              </tr>
+              ${registrationRows}
+            </table>
+          </div>
 
-          <!-- נרשמו -->
-          <h3>נרשמו</h3>
-          <input type="text" id="search" placeholder="🔍 חפש עובד..." onkeyup="searchTable()">
-          <table border="1" cellpadding="8">
-            <tr>
-              <th>שם</th>
-              <th>חברה</th>
-              <th>מחלקה</th>
-              <th>טלפון</th>
-              <th>אימייל</th>
-              <th>תאריך</th>
-              <th>IP</th>
-              <th>סטטוס</th>
-              <th>פעולות</th>
-            </tr>
-            ${registrationRows}
-          </table>
+          <!-- TAB: קליקים -->
+          <div id="tab-clicks" class="tab-content">
+            <h3>👆 לחצו ולא נרשמו</h3>
+            <table>
+              <tr>
+                <th>שם עובד</th>
+                <th>מייל</th>
+                <th>זמן לחיצה אחרון</th>
+                <th>IP</th>
+                <th>כמות לחיצות</th>
+              </tr>
+              ${clickRows}
+            </table>
+          </div>
 
-          <!-- לחצו ולא נרשמו -->
-          <h3>לחצו על הקישור אבל לא נרשמו</h3>
-          <table border="1" cellpadding="8">
-            <tr>
-              <th>שם עובד</th>
-              <th>מייל</th>
-              <th>זמן לחיצה אחרון</th>
-              <th>IP</th>
-              <th>כמות לחיצות</th>
-            </tr>
-            ${clickRows}
-          </table>
+          <!-- TAB: מיילים -->
+          <div id="tab-mails" class="tab-content">
+            <h3>📤 סטטוס שליחת מיילים</h3>
+            <p>מצב: ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}</p>
+            <p>סך הכל: ${mailJob.total} | נשלחו: ${mailJob.sent} | נכשלו: ${mailJob.failed}</p>
+            <table>
+              <tr>
+                <th>שם</th>
+                <th>מייל</th>
+                <th>סטטוס</th>
+                <th>שגיאה</th>
+              </tr>
+              <tbody id="mailJobTable">
+                ${mailJobRows}
+              </tbody>
+            </table>
+          </div>
 
-          <!-- סטטוס שליחה -->
-          <h3>סטטוס שליחת מיילים</h3>
-          <p>מצב: ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}</p>
-          <p>סך הכל: ${mailJob.total} | נשלחו: ${mailJob.sent} | נכשלו: ${mailJob.failed}</p>
-          <table border="1" cellpadding="8">
-            <tr>
-              <th>שם</th>
-              <th>מייל</th>
-              <th>סטטוס</th>
-              <th>שגיאה</th>
-            </tr>
-            <tbody id="mailJobTable">
-              ${mailJobRows}
-            </tbody>
-          </table>
+        </div>
 
-          <script>
-            function searchTable() {
-              const input = document.getElementById("search").value.toLowerCase();
-              const rows = document.querySelectorAll("table tr");
-              rows.forEach((row, i) => {
-                if (i === 0) return;
-                row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+        <script>
+          // TABS
+          function showTab(name) {
+            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+            document.getElementById("tab-" + name).classList.add("active");
+            event.target.classList.add("active");
+            localStorage.setItem("activeTab", name);
+          }
+
+          // שמור tab פעיל
+          const savedTab = localStorage.getItem("activeTab");
+          if (savedTab) {
+            const tabEl = document.getElementById("tab-" + savedTab);
+            if (tabEl) {
+              document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
+              document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
+              tabEl.classList.add("active");
+              document.querySelectorAll(".tab-btn").forEach(btn => {
+                if (btn.getAttribute("onclick").includes(savedTab)) btn.classList.add("active");
               });
             }
+          }
 
-            async function updateMailStatus() {
-              try {
-                const res = await fetch("/admin/mail-status");
-                const data = await res.json();
-                const table = document.getElementById("mailJobTable");
-                if (!table || !Array.isArray(data.results)) {
-                  setTimeout(updateMailStatus, 2000);
-                  return;
-                }
-                table.innerHTML = "";
-                data.results.forEach(r => {
-                  const color = r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444";
-                  const icon = r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌";
-                  table.innerHTML +=
-                    "<tr>" +
-                    "<td>" + (r.name || "") + "</td>" +
-                    "<td>" + (r.email || "") + "</td>" +
-                    "<td style='color:" + color + "; font-weight:bold;'>" + icon + " " + (r.status || "") + "</td>" +
-                    "<td style='" + (r.error ? "color:#ef4444;" : "") + "'>" + (r.error || "") + "</td>" +
-                    "</tr>";
-                });
-                if (data.running) setTimeout(updateMailStatus, 2000);
-              } catch (err) {
-                console.error("MAIL STATUS ERROR:", err);
-                setTimeout(updateMailStatus, 3000);
+          // SEARCH
+          function searchTable() {
+            const input = document.getElementById("search").value.toLowerCase();
+            const rows = document.querySelectorAll("#reg-table tr");
+            rows.forEach((row, i) => {
+              if (i === 0) return;
+              row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+            });
+          }
+
+          // MAIL STATUS AUTO UPDATE
+          async function updateMailStatus() {
+            try {
+              const res = await fetch("/admin/mail-status");
+              const data = await res.json();
+              const table = document.getElementById("mailJobTable");
+              if (!table || !Array.isArray(data.results)) {
+                setTimeout(updateMailStatus, 2000);
+                return;
               }
+              table.innerHTML = "";
+              data.results.forEach(r => {
+                const color = r.status === "נשלח" ? "#22c55e" : r.status === "בתהליך" ? "#f59e0b" : "#ef4444";
+                const icon = r.status === "נשלח" ? "✅" : r.status === "בתהליך" ? "⏳" : "❌";
+                table.innerHTML +=
+                  "<tr><td>" + (r.name || "") + "</td><td>" + (r.email || "") + "</td>" +
+                  "<td style='color:" + color + ";font-weight:bold;'>" + icon + " " + (r.status || "") + "</td>" +
+                  "<td style='" + (r.error ? "color:#ef4444;" : "") + "'>" + (r.error || "") + "</td></tr>";
+              });
+              if (data.running) setTimeout(updateMailStatus, 2000);
+            } catch (err) {
+              setTimeout(updateMailStatus, 3000);
             }
-            updateMailStatus();
-          </script>
-        </div>
+          }
+          updateMailStatus();
+        </script>
       </body>
       </html>
     `);
@@ -780,16 +668,12 @@ app.get("/admin", async (req, res) => {
 });
 
 // =======================
-// CLICK RESET
+// RESET CLICKS
 // =======================
 app.post("/admin/reset-clicks", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.status(403).send("אין הרשאה");
-  }
-
+  if (!req.session.loggedIn) return res.status(403).send("אין הרשאה");
   try {
     await pool.query("TRUNCATE clicks RESTART IDENTITY");
-    console.log("CLICKS RESET");
     res.redirect("/admin");
   } catch (err) {
     console.error("RESET CLICKS ERROR:", err);
@@ -801,15 +685,9 @@ app.post("/admin/reset-clicks", async (req, res) => {
 // DELETE REGISTRATION
 // =======================
 app.post("/delete", async (req, res) => {
-  if (!req.session.loggedIn) {
-    return res.redirect("/login");
-  }
-
+  if (!req.session.loggedIn) return res.redirect("/login");
   try {
-    await pool.query(
-      "DELETE FROM registrations WHERE id = $1",
-      [req.body.id]
-    );
+    await pool.query("DELETE FROM registrations WHERE id = $1", [req.body.id]);
     res.redirect("/admin");
   } catch (err) {
     console.error("DELETE ERROR:", err);
@@ -821,16 +699,13 @@ app.post("/delete", async (req, res) => {
 // LOGOUT
 // =======================
 app.get("/logout", (req, res) => {
-  req.session.destroy(() => {
-    res.redirect("/login");
-  });
+  req.session.destroy(() => res.redirect("/login"));
 });
 
 // =======================
 // START
 // =======================
 const port = process.env.PORT || 3000;
-
 app.listen(port, "0.0.0.0", () => {
   console.log("✅ Server running on port " + port);
 });
