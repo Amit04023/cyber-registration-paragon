@@ -302,35 +302,39 @@ async function sendTrackingEmails() {
         from: `"Paragon group" <${process.env.REGISTER_EMAIL_USER}>`,
         to: emp.email,
         subject: settings.subject,
-        html: `
-<div dir="rtl" style="font-family: Arial, sans-serif; color: #222; line-height: 1.7; max-width: 480px;">
-  <p>שלום ${escapeHtml(emp.name)},</p>
-  <p>${escapeHtml(settings.intro)}</p>
-  <p style="font-size: 12px; color: #888;">Last changed: Thursday, March 17, 2022</p>
-  <a href="${link}" style="text-decoration: none; color: inherit; display: inline-block; margin: 4px 0;">
-    <table cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border: 1px solid #d6d6d6; border-radius: 12px; min-width: 240px; max-width: 290px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-      <tr>
-        <td style="padding: 12px 8px 12px 14px; vertical-align: middle; width: 48px;">
-          <svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg">
-            <path d="M4 0 H26 L38 12 V42 Q38 46 34 46 H4 Q0 46 0 42 V4 Q0 0 4 0Z" fill="#e8f0fe"/>
-            <path d="M26 0 L38 12 H28 Q26 12 26 10 Z" fill="#a8c4f5"/>
-            <rect x="5" y="28" width="28" height="12" rx="2" fill="#ea4335"/>
-            <text x="19" y="38" font-family="Arial" font-size="8" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
-            <rect x="6" y="16" width="18" height="2" rx="1" fill="#a8c4f5"/>
-            <rect x="6" y="21" width="22" height="2" rx="1" fill="#a8c4f5"/>
-          </svg>
-        </td>
-        <td style="padding: 12px 8px 12px 4px; vertical-align: middle;">
-          <div style="font-size: 13px; font-weight: 600; color: #0078d4; white-space: nowrap;">${escapeHtml(settings.file_name)}</div>
-          <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(settings.file_size)}</div>
-        </td>
-        <td style="padding: 12px 14px 12px 8px; vertical-align: middle; color: #aaa; font-size: 16px;">&#8964;</td>
-      </tr>
-    </table>
-  </a>
-  <p style="margin-top: 20px; font-size: 12px; color: #999;">Paragon Group</p>
-</div>
-        `
+            html: `
+              <div dir="rtl" style="font-family: Arial, sans-serif; color: #222; line-height: 1.7; max-width: 480px;">
+                <p>שלום ${escapeHtml(emp.name)},</p>
+                <p>${escapeHtml(settings.intro)}</p>
+                <p style="font-size: 12px; color: #888;">Last changed: Thursday, March 17, 2022</p>
+
+                <table cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border: 1px solid #d6d6d6; border-radius: 12px; min-width: 240px; max-width: 290px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
+                  <tr>
+                    <td style="padding: 12px 8px 12px 14px; vertical-align: middle; width: 48px;">
+                      <svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg">
+                        <path d="M4 0 H26 L38 12 V42 Q38 46 34 46 H4 Q0 46 0 42 V4 Q0 0 4 0Z" fill="#e8f0fe"/>
+                        <path d="M26 0 L38 12 H28 Q26 12 26 10 Z" fill="#a8c4f5"/>
+                        <rect x="5" y="28" width="28" height="12" rx="2" fill="#ea4335"/>
+                        <text x="19" y="38" font-family="Arial" font-size="8" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
+                        <rect x="6" y="16" width="18" height="2" rx="1" fill="#a8c4f5"/>
+                        <rect x="6" y="21" width="22" height="2" rx="1" fill="#a8c4f5"/>
+                      </svg>
+                    </td>
+                    <td style="padding: 12px 8px 12px 4px; vertical-align: middle;">
+                      <a href="${link}" style="text-decoration: none; display: block;">
+                        <div style="font-size: 13px; font-weight: 600; color: #0078d4; white-space: nowrap;">${escapeHtml(settings.file_name)}</div>
+                        <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(settings.file_size)}</div>
+                      </a>
+                    </td>
+                    <td style="padding: 12px 14px 12px 8px; vertical-align: middle;">
+                      <a href="${link}" style="color: #aaa; font-size: 16px; text-decoration: none;">&#8964;</a>
+                    </td>
+                  </tr>
+                </table>
+
+                <p style="margin-top: 20px; font-size: 12px; color: #999;">Paragon Group</p>
+              </div>
+              `
       });
 
       mailJob.sent++;
