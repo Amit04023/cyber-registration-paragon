@@ -94,11 +94,6 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
-function toInt(value, fallback = 0) {
-  const parsed = parseInt(value, 10);
-  return Number.isFinite(parsed) ? parsed : fallback;
-}
-
 const BASE_URL =
   cleanEnv(process.env.BASE_URL) || "https://cyber-registration-paragon.onrender.com";
 
@@ -137,7 +132,8 @@ const mailFrom =
 
 const smtpHost = cleanEnv(process.env.SMTP_HOST) || "smtppro.zoho.com";
 const smtpPort = Number(cleanEnv(process.env.SMTP_PORT) || 587);
-const smtpSecure = String(cleanEnv(process.env.SMTP_SECURE) || "false").toLowerCase() === "true";
+const smtpSecure =
+  String(cleanEnv(process.env.SMTP_SECURE) || "false").toLowerCase() === "true";
 
 if (!mailUser || !mailPass) {
   console.error("MAIL CONFIG ERROR: Missing SMTP/SEND/REGISTER email user or password");
@@ -190,7 +186,7 @@ let mailJob = {
 };
 
 // =======================
-// IMPORT HELPERS: CSV / EXCEL
+// IMPORT HELPERS
 // =======================
 function parseEmployeesFile(file) {
   const originalName = String(file.originalname || "").toLowerCase();
@@ -220,42 +216,42 @@ function parseEmployeesFile(file) {
     });
   }
 
-  throw new Error("Unsupported file type. Upload CSV, XLSX, or XLS only.");
+  throw new Error("סוג קובץ לא נתמך. יש להעלות CSV, XLSX או XLS בלבד.");
 }
 
 function getEmployeeNameFromRow(row) {
   return String(
     row.name ||
-    row.Name ||
-    row["שם"] ||
-    row["שם מלא"] ||
-    row["שם עובד"] ||
-    row["עובד"] ||
-    row.full_name ||
-    row.FullName ||
-    row["Full Name"] ||
-    ""
+      row.Name ||
+      row["שם"] ||
+      row["שם מלא"] ||
+      row["שם עובד"] ||
+      row["עובד"] ||
+      row.full_name ||
+      row.FullName ||
+      row["Full Name"] ||
+      ""
   ).trim();
 }
 
 function getEmployeeEmailFromRow(row) {
   return normalizeEmail(
     row.email ||
-    row.Email ||
-    row["מייל"] ||
-    row["אימייל"] ||
-    row["מייל עובד"] ||
-    row["אימייל עובד"] ||
-    row.mail ||
-    row.Mail ||
-    row["Email Address"] ||
-    row["כתובת מייל"] ||
-    ""
+      row.Email ||
+      row["מייל"] ||
+      row["אימייל"] ||
+      row["מייל עובד"] ||
+      row["אימייל עובד"] ||
+      row.mail ||
+      row.Mail ||
+      row["Email Address"] ||
+      row["כתובת מייל"] ||
+      ""
   );
 }
 
 // =======================
-// EMAIL HTML: REALISTIC PDF CARD
+// EMAIL HTML
 // =======================
 function buildPdfEmailHtml({ employeeName, intro, fileName, fileSize, link }) {
   const safeName = escapeHtml(employeeName || "עובד/ת");
@@ -593,8 +589,6 @@ app.post("/register", async (req, res) => {
     return res.status(400).send("אימייל לא תקין");
   }
 
-  let registrationSaved = false;
-
   try {
     const ip = getClientIp(req);
 
@@ -659,8 +653,6 @@ app.post("/register", async (req, res) => {
       );
     }
 
-    registrationSaved = true;
-
     if (token) {
       await pool.query(
         `
@@ -676,17 +668,15 @@ app.post("/register", async (req, res) => {
     return res.status(500).send("שגיאה בהרשמה");
   }
 
-  if (registrationSaved) {
-    try {
-      await transporter.sendMail({
-        from: mailFrom,
-        to: email,
-        subject: "אישור הרשמה להרצאת סייבר",
-        html: buildConfirmationEmailHtml(fullName),
-      });
-    } catch (mailErr) {
-      console.error("CONFIRMATION MAIL FAILED - REGISTRATION STILL SAVED:", mailErr.message);
-    }
+  try {
+    await transporter.sendMail({
+      from: mailFrom,
+      to: email,
+      subject: "אישור הרשמה להרצאת סייבר",
+      html: buildConfirmationEmailHtml(fullName),
+    });
+  } catch (mailErr) {
+    console.error("CONFIRMATION MAIL FAILED - REGISTRATION STILL SAVED:", mailErr.message);
   }
 
   return res.sendFile(path.join(__dirname, "views", "success.html"));
@@ -788,7 +778,7 @@ app.post("/login", (req, res) => {
 // SEND MAILS
 // =======================
 app.post("/admin/send-mails", requireAdmin, async (req, res) => {
-  if (mailJob.running) return res.redirect("/admin");
+  if (mailJob.running) return res.redirect("/admin?tab=mails");
 
   sendTrackingEmails().catch((err) => {
     console.error("MAIL JOB ERROR:", err.message);
@@ -803,7 +793,7 @@ app.post("/admin/send-mails", requireAdmin, async (req, res) => {
     });
   });
 
-  return res.redirect("/admin");
+  return res.redirect("/admin?tab=mails");
 });
 
 // =======================
@@ -814,23 +804,29 @@ app.post("/admin/add-employee", requireAdmin, async (req, res) => {
   const email = normalizeEmail(req.body.email);
 
   if (!name || !email || !isValidEmail(email)) {
-    return res.redirect("/admin");
+    return res.redirect("/admin?tab=employees&importError=invalid_manual_employee");
   }
 
   try {
-    await pool.query(
+    const result = await pool.query(
       `
       INSERT INTO employees (name, email)
       VALUES ($1, $2)
       ON CONFLICT (email) DO NOTHING
+      RETURNING id
       `,
       [name, email]
     );
+
+    if (result.rowCount === 0) {
+      return res.redirect("/admin?tab=employees&importAdded=0&importDuplicates=1&importInvalid=0&importTotal=1");
+    }
+
+    return res.redirect("/admin?tab=employees&importAdded=1&importDuplicates=0&importInvalid=0&importTotal=1");
   } catch (err) {
     console.error("ADD EMPLOYEE ERROR:", err.message);
+    return res.redirect(`/admin?tab=employees&importError=${encodeURIComponent(err.message)}`);
   }
-
-  return res.redirect("/admin");
 });
 
 // =======================
@@ -845,7 +841,7 @@ app.post("/admin/import-csv", requireAdmin, upload.single("csvfile"), async (req
   try {
     if (!req.file) {
       console.error("EMPLOYEES IMPORT ERROR: No file uploaded");
-      return res.redirect("/admin?importError=no_file");
+      return res.redirect("/admin?tab=employees&importError=no_file");
     }
 
     const records = parseEmployeesFile(req.file);
@@ -891,11 +887,11 @@ app.post("/admin/import-csv", requireAdmin, upload.single("csvfile"), async (req
     );
 
     return res.redirect(
-      `/admin?importAdded=${added}&importDuplicates=${duplicates}&importInvalid=${invalid}&importTotal=${total}`
+      `/admin?tab=employees&importAdded=${added}&importDuplicates=${duplicates}&importInvalid=${invalid}&importTotal=${total}`
     );
   } catch (err) {
     console.error("EMPLOYEES IMPORT ERROR:", err.message);
-    return res.redirect(`/admin?importError=${encodeURIComponent(err.message)}`);
+    return res.redirect(`/admin?tab=employees&importError=${encodeURIComponent(err.message)}`);
   }
 });
 
@@ -906,7 +902,7 @@ app.post("/admin/delete-employee", requireAdmin, async (req, res) => {
   const id = Number(req.body.id);
 
   if (!Number.isInteger(id) || id <= 0) {
-    return res.redirect("/admin");
+    return res.redirect("/admin?tab=employees");
   }
 
   try {
@@ -915,7 +911,7 @@ app.post("/admin/delete-employee", requireAdmin, async (req, res) => {
     console.error("DELETE EMPLOYEE ERROR:", err.message);
   }
 
-  return res.redirect("/admin");
+  return res.redirect("/admin?tab=employees");
 });
 
 // =======================
@@ -944,7 +940,7 @@ app.post("/admin/mail-settings", requireAdmin, async (req, res) => {
     console.error("MAIL SETTINGS ERROR:", err.message);
   }
 
-  return res.redirect("/admin");
+  return res.redirect("/admin?tab=settings");
 });
 
 // =======================
@@ -1013,12 +1009,12 @@ app.get("/admin", requireAdmin, async (req, res) => {
     if (importError) {
       importMessage = `
         <div style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:rgba(239,68,68,0.16);border:1px solid rgba(239,68,68,0.45);color:#fecaca;font-weight:bold;">
-          שגיאה בייבוא: ${escapeHtml(importError)}
+          שגיאה בייבוא/הוספה: ${escapeHtml(importError)}
         </div>`;
     } else if (importTotal !== undefined) {
       importMessage = `
         <div style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.42);color:#bbf7d0;font-weight:bold;">
-          ייבוא הסתיים: נוספו ${escapeHtml(importAdded)} | כפולים ${escapeHtml(importDuplicates)} | לא תקינים ${escapeHtml(importInvalid)} | סה״כ שורות ${escapeHtml(importTotal)}
+          פעולה הסתיימה: נוספו ${escapeHtml(importAdded)} | כפולים ${escapeHtml(importDuplicates)} | לא תקינים ${escapeHtml(importInvalid)} | סה״כ שורות ${escapeHtml(importTotal)}
         </div>`;
     }
 
@@ -1065,11 +1061,20 @@ app.get("/admin", requireAdmin, async (req, res) => {
           <td>
             <form method="POST" action="/admin/delete-employee">
               <input type="hidden" name="id" value="${escapeAttr(e.id)}">
-              <button type="submit" onclick="return confirm('למחוק עובד זה?')">מחק</button>
+              <button type="submit" onclick="return confirm('למחוק את המייל הזה?')">מחק</button>
             </form>
           </td>
         </tr>`;
     });
+
+    if (!employeeRows) {
+      employeeRows = `
+        <tr>
+          <td colspan="5" style="text-align:center;color:#94a3b8;padding:24px;">
+            אין עדיין מיילים טעונים. העלה קובץ Excel / CSV או הוסף מייל ידנית.
+          </td>
+        </tr>`;
+    }
 
     let mailJobRows = "";
     mailJob.results.forEach((r) => {
@@ -1129,7 +1134,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
             <a href="/logout" class="logout-btn">🚪 יציאה</a>
 
             <form method="POST" action="/admin/send-mails">
-              <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">📤 שלח מיילים</button>
+              <button type="submit" onclick="return confirm('בטוח לשלוח לכל המיילים הטעונים?')">📤 שלח מיילים</button>
             </form>
 
             <form method="POST" action="/admin/reset-clicks" onsubmit="return confirm('בטוח לאפס את כל הקליקים?')">
@@ -1141,30 +1146,30 @@ app.get("/admin", requireAdmin, async (req, res) => {
             <button type="button" class="tab-btn active" onclick="showTab('employees', this)">👥 מיילים טעונים (${totalEmployeesCount})</button>
             <button type="button" class="tab-btn" onclick="showTab('registrations', this)">✅ נרשמים (${registered})</button>
             <button type="button" class="tab-btn" onclick="showTab('clicks', this)">👆 קליקים (${clicked})</button>
-            <button type="button" class="tab-btn" onclick="showTab('mails', this)">📤 מיילים</button>
+            <button type="button" class="tab-btn" onclick="showTab('mails', this)">📤 סטטוס שליחה</button>
             <button type="button" class="tab-btn" onclick="showTab('settings', this)">⚙️ הגדרות</button>
             <button type="button" class="tab-btn" onclick="showTab('stats', this)">📊 גרף</button>
           </div>
 
           <div id="tab-employees" class="tab-content active">
-            <h3>👥 מיילים טעונים במערכת (${totalEmployeesCount})</h3>
+            <h3>👥 כל המיילים שטענת (${totalEmployeesCount})</h3>
 
             <form method="POST" action="/admin/add-employee" class="add-employee-form">
-              <input type="text" name="name" placeholder="שם עובד" required>
-              <input type="email" name="email" placeholder="מייל עובד" required>
-              <button type="submit">➕ הוסף</button>
+              <input type="text" name="name" placeholder="שם" required>
+              <input type="email" name="email" placeholder="מייל" required>
+              <button type="submit">➕ הוסף מייל</button>
             </form>
 
             <form method="POST" action="/admin/import-csv" enctype="multipart/form-data" class="add-employee-form" style="margin-top:10px;">
               <input type="file" name="csvfile" accept=".csv,.xlsx,.xls" required style="color:white;">
-              <button type="submit" style="background: linear-gradient(135deg, #059669, #047857);">📥 ייבוא CSV / Excel</button>
+              <button type="submit" style="background: linear-gradient(135deg, #059669, #047857);">📥 ייבוא Excel / CSV</button>
             </form>
 
             <p style="font-size:12px;color:#94a3b8;margin-top:6px;">
-              קובץ CSV או Excel חייב לכלול עמודות: <strong>name</strong> ו-<strong>email</strong> או בעברית: <strong>שם</strong>, <strong>מייל</strong>.
+              אפשר להעלות Excel או CSV עם עמודות: <strong>שם</strong> ו-<strong>מייל</strong>. גם <strong>name</strong> ו-<strong>email</strong> נתמכים.
             </p>
 
-            <input type="text" id="employeeSearch" placeholder="🔍 חפש במיילים הטעונים..." onkeyup="searchEmployeeTable()" style="margin:10px 0 15px;">
+            <input type="text" id="employeeSearch" placeholder="🔍 חפש שם או מייל..." onkeyup="searchEmployeeTable()" style="margin:10px 0 15px;">
 
             <table id="emp-table">
               <tr>
@@ -1276,7 +1281,10 @@ app.get("/admin", requireAdmin, async (req, res) => {
           }
 
           function restoreSavedTab() {
-            var savedTab = localStorage.getItem("activeTab");
+            var params = new URLSearchParams(window.location.search);
+            var urlTab = params.get("tab");
+            var savedTab = urlTab || localStorage.getItem("activeTab");
+
             if (!savedTab) return;
 
             var tabEl = document.getElementById("tab-" + savedTab);
@@ -1298,6 +1306,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
                 btn.classList.add("active");
               }
             });
+
+            localStorage.setItem("activeTab", savedTab);
           }
 
           function searchTable() {
@@ -1451,7 +1461,7 @@ app.post("/admin/reset-clicks", requireAdmin, async (req, res) => {
     console.error("RESET CLICKS ERROR:", err.message);
   }
 
-  return res.redirect("/admin");
+  return res.redirect("/admin?tab=clicks");
 });
 
 // =======================
@@ -1461,7 +1471,7 @@ app.post("/delete", requireAdmin, async (req, res) => {
   const id = Number(req.body.id);
 
   if (!Number.isInteger(id) || id <= 0) {
-    return res.redirect("/admin");
+    return res.redirect("/admin?tab=registrations");
   }
 
   let client;
@@ -1507,7 +1517,7 @@ app.post("/delete", requireAdmin, async (req, res) => {
     }
   }
 
-  return res.redirect("/admin");
+  return res.redirect("/admin?tab=registrations");
 });
 
 // =======================
