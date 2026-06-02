@@ -2,25 +2,26 @@
 <html lang="he" dir="rtl">
 <head>
   <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Security Awareness</title>
   <link rel="stylesheet" href="/style.css">
 </head>
 
 <body class="awareness-page">
 
-  <!-- רקע אש חדש -->
-  <div class="fire-hero">
-    <img src="/logo2.png" class="fire-logo-bg" alt="logo">
+  <!-- רקע אש / עשן -->
+  <div class="fire-hero" aria-hidden="true">
+    <img src="/logo2.png" class="fire-logo-bg" alt="">
     <canvas id="smokeCanvas"></canvas>
     <canvas id="embersCanvas"></canvas>
     <div class="fire-overlay"></div>
   </div>
 
   <!-- תוכן -->
-  <div class="awareness-wrap">
-    <div class="awareness-card">
+  <main class="awareness-wrap">
+    <section class="awareness-card">
 
-      <img src="/logo1.png" class="awareness-logo" alt="logo">
+      <img src="/logo1.png" class="awareness-logo" alt="Paragon logo">
 
       <div class="awareness-badge">
         Paragon Advanced Security Awareness Simulation
@@ -28,9 +29,15 @@
 
       <h1>שלום <%= name %></h1>
 
-      <div id="typed"></div>
+      <div id="typed" class="awareness-text"></div>
 
-      <button id="btn" class="awareness-btn" onclick="goToRegister()">
+      <button
+        id="btn"
+        class="awareness-btn"
+        type="button"
+        onclick="goToRegister()"
+        style="display:none;"
+      >
         הבנתי, המשך להרשמה להרצאת מודעות סייבר
       </button>
 
@@ -38,46 +45,58 @@
         זהו תרגיל מודעות בלבד. לא נאספו סיסמאות או פרטים רגישים.
       </div>
 
-    </div>
-  </div>
+    </section>
+  </main>
 
   <script>
     const message = `
 הלחיצה על הקישור זוהתה.
 
-זה בדיוק הרגע שבו בארגונים אמיתיים מתרחשות רוב טעויות האבטחה:
+זה בדיוק הרגע שבו טעויות אבטחה קורות:
 קישור שנראה מוכר.
 מסמך שנראה רגיל.
 הודעה שנראית תמימה.
 
-המטרה של הסימולציה היא להזכיר:
-לא פותחים קישורים בלי לבדוק מקור.
-לא מזינים פרטים בלי לוודא כתובת אתר.
-לא סומכים על שם או לוגו בלבד.
+בארגונים אמיתיים, לפעמים זה כל מה שצריך כדי לפתוח דלת לתוקף.
+במקרה הזה אפשר להירגע — זו הייתה סימולציה מבוקרת של Paragon.
+
+המטרה של התרגיל פשוטה:
+בודקים מי שלח את ההודעה.
+בודקים לאן הקישור מוביל.
+לא מזינים פרטים לפני שמוודאים שהאתר אמיתי.
+ולא סומכים רק על לוגו, שם חברה או ניסוח שנראה רשמי.
+
+בהרצאה הקרובה נראה איך לזהות ניסיונות כאלה בזמן,
+איך להימנע מלחיצות מסוכנות,
+ומה עושים כשמשהו נראה קצת חשוד.
 
 זו הייתה סימולציית מודעות סייבר של Paragon.
 `;
 
     const typed = document.getElementById("typed");
     const btn = document.getElementById("btn");
+    const token = "<%= token %>";
 
     let i = 0;
 
     function typeText() {
+      if (!typed || !btn) return;
+
       if (i < message.length) {
         typed.textContent += message.charAt(i);
         i++;
-        setTimeout(typeText, 32);
+        setTimeout(typeText, 26);
       } else {
         btn.style.display = "block";
       }
     }
 
     function goToRegister() {
-      window.location.href = "/register-page?u=<%= token %>";
+      const safeToken = encodeURIComponent(token || "");
+      window.location.href = "/register-page?u=" + safeToken;
     }
 
-    typeText();
+    document.addEventListener("DOMContentLoaded", typeText);
   </script>
 
   <script src="/script.js"></script>

@@ -9,19 +9,41 @@ const multer = require("multer");
 const csv = require("csv-parse/sync");
 
 const app = express();
-const upload = multer({ storage: multer.memoryStorage() });
+
+app.set("trust proxy", 1);
+
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    fileSize: 2 * 1024 * 1024,
+  },
+});
 
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
 const BASE_URL =
-  process.env.BASE_URL || "https://cyber-registration-paragon.onrender.com";
+  cleanEnv(process.env.BASE_URL) || "https://cyber-registration-paragon.onrender.com";
 
 // =======================
-// ESCAPE HTML
+// HELPERS
 // =======================
+function cleanEnv(value) {
+  if (value === undefined || value === null) return "";
+  let cleaned = String(value).trim();
+
+  if (
+    (cleaned.startsWith('"') && cleaned.endsWith('"')) ||
+    (cleaned.startsWith("'") && cleaned.endsWith("'"))
+  ) {
+    cleaned = cleaned.slice(1, -1).trim();
+  }
+
+  return cleaned;
+}
+
 function escapeHtml(str) {
-  if (!str) return "";
+  if (str === undefined || str === null) return "";
   return String(str)
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
@@ -32,6 +54,51 @@ function escapeHtml(str) {
 
 function escapeAttr(str) {
   return escapeHtml(str).replace(/`/g, "&#096;");
+}
+
+function formatDate(value) {
+  if (!value) return "";
+
+  const date = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(date.getTime())) return escapeHtml(String(value));
+
+  return date.toLocaleString("he-IL", {
+    timeZone: "Asia/Jerusalem",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+  });
+}
+
+function delay(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+function createToken(email) {
+  return crypto
+    .createHash("sha256")
+    .update(String(email || "").toLowerCase().trim())
+    .digest("hex")
+    .slice(0, 32);
+}
+
+function getClientIp(req) {
+  const forwarded = req.headers["x-forwarded-for"];
+  if (forwarded) {
+    return String(forwarded).split(",")[0].trim();
+  }
+
+  return req.socket.remoteAddress || "";
+}
+
+function normalizeEmail(email) {
+  return String(email || "").trim().toLowerCase();
+}
+
+function isValidEmail(email) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
 // =======================
@@ -46,22 +113,22 @@ const pool = new Pool({
 // MAIL CONFIG
 // =======================
 const mailUser =
-  process.env.SMTP_USER ||
-  process.env.SEND_EMAIL_USER ||
-  process.env.REGISTER_EMAIL_USER;
+  cleanEnv(process.env.SMTP_USER) ||
+  cleanEnv(process.env.SEND_EMAIL_USER) ||
+  cleanEnv(process.env.REGISTER_EMAIL_USER);
 
 const mailPass =
-  process.env.SMTP_PASS ||
-  process.env.SEND_EMAIL_PASS ||
-  process.env.REGISTER_EMAIL_PASS;
+  cleanEnv(process.env.SMTP_PASS) ||
+  cleanEnv(process.env.SEND_EMAIL_PASS) ||
+  cleanEnv(process.env.REGISTER_EMAIL_PASS);
 
 const mailFrom =
-  process.env.SMTP_FROM ||
+  cleanEnv(process.env.SMTP_FROM) ||
   (mailUser ? `Paragon group <${mailUser}>` : undefined);
 
-const smtpHost = process.env.SMTP_HOST || "smtppro.zoho.com";
-const smtpPort = Number(process.env.SMTP_PORT || 587);
-const smtpSecure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
+const smtpHost = cleanEnv(process.env.SMTP_HOST) || "smtppro.zoho.com";
+const smtpPort = Number(cleanEnv(process.env.SMTP_PORT) || 587);
+const smtpSecure = String(cleanEnv(process.env.SMTP_SECURE) || "false").toLowerCase() === "true";
 
 if (!mailUser || !mailPass) {
   console.error("MAIL CONFIG ERROR: Missing SMTP/SEND/REGISTER email user or password");
@@ -113,34 +180,14 @@ let mailJob = {
   finishedAt: null,
 };
 
-function delay(ms) {
-  return new Promise((resolve) => setTimeout(resolve, ms));
-}
-
-function createToken(email) {
-  return crypto
-    .createHash("sha256")
-    .update(String(email).toLowerCase().trim())
-    .digest("hex")
-    .slice(0, 32);
-}
-
-function getClientIp(req) {
-  return (
-    req.headers["x-forwarded-for"]?.split(",").pop().trim() ||
-    req.socket.remoteAddress ||
-    ""
-  );
-}
-
 // =======================
 // EMAIL HTML: REALISTIC PDF CARD
 // =======================
 function buildPdfEmailHtml({ employeeName, intro, fileName, fileSize, link }) {
-  const safeName = escapeHtml(employeeName);
-  const safeIntro = escapeHtml(intro);
-  const safeFileName = escapeHtml(fileName);
-  const safeFileSize = escapeHtml(fileSize);
+  const safeName = escapeHtml(employeeName || "עובד/ת");
+  const safeIntro = escapeHtml(intro || "");
+  const safeFileName = escapeHtml(fileName || "document.pdf");
+  const safeFileSize = escapeHtml(fileSize || "");
   const safeLink = escapeAttr(link);
 
   return `
@@ -229,6 +276,53 @@ function buildPdfEmailHtml({ employeeName, intro, fileName, fileSize, link }) {
   `;
 }
 
+function buildConfirmationEmailHtml(fullName) {
+  const safeFullName = escapeHtml(fullName || "");
+
+  return `
+    <div dir="rtl" style="font-family:Arial, Helvetica, sans-serif; line-height:1.7; color:#202124; max-width:560px;">
+      <h2 style="margin:0 0 12px 0; color:#111827;">
+        שלום ${safeFullName} 👋
+      </h2>
+
+      <p style="font-size:16px; margin:0 0 14px 0;">
+        נרשמת בהצלחה להרצאת הסייבר של <strong>Paragon</strong> 🔐
+      </p>
+
+      <p style="margin:0 0 14px 0;">
+        מעולה, אתה בפנים. מבטיחים בלי מבחן בסוף, בלי שיעורי בית, ובלי שמישהו יבקש ממך את הסיסמה שלך 😉
+      </p>
+
+      <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:16px 18px; margin:18px 0;">
+        <p style="margin:0 0 10px 0; font-weight:bold; font-size:16px;">
+          פרטי ההרצאה:
+        </p>
+
+        <ul style="padding-right:20px; margin:0; font-size:15px;">
+          <li style="margin-bottom:6px;">📅 תאריך: <strong>16/06</strong></li>
+          <li style="margin-bottom:6px;">⏰ שעה: <strong>14:30</strong></li>
+          <li style="margin-bottom:6px;">💻 פלטפורמה: <strong>Zoom</strong></li>
+        </ul>
+      </div>
+
+      <p style="margin:0 0 14px 0;">
+        קישור לזום יישלח סמוך למועד ההרצאה.
+      </p>
+
+      <p style="margin:0 0 14px 0;">
+        עד אז — לא לוחצים על קישורים חשודים, גם אם הם נראים ממש משכנעים 😄
+      </p>
+
+      <br>
+
+      <p style="margin:0;">
+        נתראה בהרצאה,<br>
+        <strong>Paragon group</strong>
+      </p>
+    </div>
+  `;
+}
+
 // =======================
 // MIDDLEWARE
 // =======================
@@ -260,7 +354,7 @@ app.use(
 // =======================
 function requireAdmin(req, res, next) {
   if (!req.session.loggedIn) return res.redirect("/login");
-  next();
+  return next();
 }
 
 // =======================
@@ -339,7 +433,7 @@ initDb().catch((err) => {
 // HOME + CLICK TRACKING
 // =======================
 app.get("/", async (req, res) => {
-  const token = req.query.u || "";
+  const token = String(req.query.u || "").trim();
   let emp = null;
 
   if (token) {
@@ -363,7 +457,7 @@ app.get("/", async (req, res) => {
           `
           INSERT INTO clicks (token, employee_name, employee_email, ip, user_agent)
           VALUES ($1, $2, $3, $4, $5)
-        `,
+          `,
           [
             token,
             emp ? emp.name : "Unknown",
@@ -390,10 +484,19 @@ app.get("/", async (req, res) => {
 // REGISTER
 // =======================
 app.post("/register", async (req, res) => {
-  const { full_name, company, phone, email, token, department } = req.body;
+  const fullName = String(req.body.full_name || "").trim();
+  const company = String(req.body.company || "").trim();
+  const phone = String(req.body.phone || "").trim();
+  const email = normalizeEmail(req.body.email);
+  const token = String(req.body.token || "").trim();
+  const department = String(req.body.department || "").trim();
 
-  if (!full_name || !email) {
+  if (!fullName || !email) {
     return res.status(400).send("חסר שם או אימייל");
+  }
+
+  if (!isValidEmail(email)) {
+    return res.status(400).send("אימייל לא תקין");
   }
 
   try {
@@ -406,74 +509,40 @@ app.post("/register", async (req, res) => {
       VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
       `,
       [
-        full_name,
-        company || "",
-        phone || "",
+        fullName,
+        company,
+        phone,
         email,
         token || null,
         ip,
         req.headers["user-agent"] || "",
         "submitted",
-        department || "",
+        department,
       ]
     );
 
     if (token) {
-      await pool.query(`UPDATE clicks SET registered = true WHERE token = $1`, [token]);
+      await pool.query(
+        `
+        UPDATE clicks
+        SET registered = true
+        WHERE token = $1
+        `,
+        [token]
+      );
     }
 
     await transporter.sendMail({
       from: mailFrom,
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
-        html: `
-          <div dir="rtl" style="font-family:Arial, Helvetica, sans-serif; line-height:1.7; color:#202124; max-width:560px;">
-            <h2 style="margin:0 0 12px 0; color:#111827;">
-              שלום ${escapeHtml(full_name)} 👋
-            </h2>
-
-            <p style="font-size:16px; margin:0 0 14px 0;">
-              נרשמת בהצלחה להרצאת הסייבר של <strong>Paragon</strong> 🔐
-            </p>
-
-            <p style="margin:0 0 14px 0;">
-              מעולה, אתה בפנים. מבטיחים בלי מבחן בסוף, בלי שיעורי בית, ובלי שמישהו יבקש ממך את הסיסמה שלך 😉
-            </p>
-
-            <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:16px 18px; margin:18px 0;">
-              <p style="margin:0 0 10px 0; font-weight:bold; font-size:16px;">
-                פרטי ההרצאה:
-              </p>
-
-              <ul style="padding-right:20px; margin:0; font-size:15px;">
-                <li style="margin-bottom:6px;">📅 תאריך: <strong>16/06</strong></li>
-                <li style="margin-bottom:6px;">⏰ שעה: <strong>14:30</strong></li>
-                <li style="margin-bottom:6px;">💻 פלטפורמה: <strong>Zoom</strong></li>
-              </ul>
-            </div>
-
-            <p style="margin:0 0 14px 0;">
-              קישור לזום יישלח סמוך למועד ההרצאה.
-            </p>
-
-            <p style="margin:0 0 14px 0;">
-              עד אז — לא לוחצים על קישורים חשודים, גם אם הם נראים ממש משכנעים 😄
-            </p>
-
-            <br>
-
-            <p style="margin:0;">
-              נתראה בהרצאה,<br>
-              <strong>Paragon group</strong>
-            </p>
-          </div>
-        `,
+      html: buildConfirmationEmailHtml(fullName),
     });
 
-    res.sendFile(path.join(__dirname, "views", "success.html"));
+    return res.sendFile(path.join(__dirname, "views", "success.html"));
   } catch (err) {
     console.error("REGISTER ERROR:", err.message);
-    res.status(500).send("שגיאה בהרשמה או בשליחת מייל");
+    return res.status(500).send("שגיאה בהרשמה או בשליחת מייל");
   }
 });
 
@@ -481,11 +550,11 @@ app.post("/register", async (req, res) => {
 // SEND TRACKING EMAILS
 // =======================
 async function sendTrackingEmails() {
-  const result = await pool.query(
+  const employeesResult = await pool.query(
     `SELECT * FROM employees WHERE active = true ORDER BY created_at ASC`
   );
 
-  const employees = result.rows;
+  const employees = employeesResult.rows;
 
   const settingsResult = await pool.query(`SELECT * FROM mail_settings WHERE id = 1`);
   const settings = settingsResult.rows[0];
@@ -502,7 +571,7 @@ async function sendTrackingEmails() {
 
   for (const emp of employees) {
     const token = createToken(emp.email);
-    const link = `${BASE_URL}/?u=${token}`;
+    const link = `${BASE_URL}/?u=${encodeURIComponent(token)}`;
 
     try {
       await transporter.sendMail({
@@ -558,14 +627,15 @@ app.get("/register-page", (req, res) => {
 });
 
 app.post("/login", (req, res) => {
-  const { user, password } = req.body;
+  const user = String(req.body.user || "");
+  const password = String(req.body.password || "");
 
   if (user === process.env.ADMIN_USER && password === process.env.ADMIN_PASSWORD) {
     req.session.loggedIn = true;
     return res.redirect("/admin");
   }
 
-  res.status(401).send("פרטים שגויים");
+  return res.status(401).send("פרטים שגויים");
 });
 
 // =======================
@@ -576,6 +646,7 @@ app.post("/admin/send-mails", requireAdmin, async (req, res) => {
 
   sendTrackingEmails().catch((err) => {
     console.error("MAIL JOB ERROR:", err.message);
+
     mailJob.running = false;
     mailJob.finishedAt = new Date();
     mailJob.results.push({
@@ -586,16 +657,19 @@ app.post("/admin/send-mails", requireAdmin, async (req, res) => {
     });
   });
 
-  res.redirect("/admin");
+  return res.redirect("/admin");
 });
 
 // =======================
 // ADD EMPLOYEE
 // =======================
 app.post("/admin/add-employee", requireAdmin, async (req, res) => {
-  const { name, email } = req.body;
+  const name = String(req.body.name || "").trim();
+  const email = normalizeEmail(req.body.email);
 
-  if (!name || !email) return res.redirect("/admin");
+  if (!name || !email || !isValidEmail(email)) {
+    return res.redirect("/admin");
+  }
 
   try {
     await pool.query(
@@ -604,13 +678,13 @@ app.post("/admin/add-employee", requireAdmin, async (req, res) => {
       VALUES ($1, $2)
       ON CONFLICT (email) DO NOTHING
       `,
-      [name.trim(), email.trim().toLowerCase()]
+      [name, email]
     );
   } catch (err) {
     console.error("ADD EMPLOYEE ERROR:", err.message);
   }
 
-  res.redirect("/admin");
+  return res.redirect("/admin");
 });
 
 // =======================
@@ -631,19 +705,21 @@ app.post("/admin/import-csv", requireAdmin, upload.single("csvfile"), async (req
     let added = 0;
 
     for (const row of records) {
-      const name = row["name"] || row["שם"] || row["Name"] || "";
-      const email = row["email"] || row["מייל"] || row["Email"] || "";
+      const name = String(row.name || row["שם"] || row.Name || "").trim();
+      const email = normalizeEmail(row.email || row["מייל"] || row.Email || "");
 
-      if (name && email) {
-        await pool.query(
+      if (name && email && isValidEmail(email)) {
+        const insertResult = await pool.query(
           `
           INSERT INTO employees (name, email)
           VALUES ($1, $2)
           ON CONFLICT (email) DO NOTHING
+          RETURNING id
           `,
-          [String(name).trim(), String(email).trim().toLowerCase()]
+          [name, email]
         );
-        added++;
+
+        if (insertResult.rowCount > 0) added++;
       }
     }
 
@@ -652,27 +728,36 @@ app.post("/admin/import-csv", requireAdmin, upload.single("csvfile"), async (req
     console.error("CSV IMPORT ERROR:", err.message);
   }
 
-  res.redirect("/admin");
+  return res.redirect("/admin");
 });
 
 // =======================
 // DELETE EMPLOYEE
 // =======================
 app.post("/admin/delete-employee", requireAdmin, async (req, res) => {
+  const id = Number(req.body.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.redirect("/admin");
+  }
+
   try {
-    await pool.query(`DELETE FROM employees WHERE id = $1`, [req.body.id]);
+    await pool.query(`DELETE FROM employees WHERE id = $1`, [id]);
   } catch (err) {
     console.error("DELETE EMPLOYEE ERROR:", err.message);
   }
 
-  res.redirect("/admin");
+  return res.redirect("/admin");
 });
 
 // =======================
 // UPDATE MAIL SETTINGS
 // =======================
 app.post("/admin/mail-settings", requireAdmin, async (req, res) => {
-  const { subject, intro, file_name, file_size } = req.body;
+  const subject = String(req.body.subject || "").trim();
+  const intro = String(req.body.intro || "").trim();
+  const fileName = String(req.body.file_name || "").trim();
+  const fileSize = String(req.body.file_size || "").trim();
 
   try {
     await pool.query(
@@ -685,13 +770,13 @@ app.post("/admin/mail-settings", requireAdmin, async (req, res) => {
           updated_at = NOW()
       WHERE id = 1
       `,
-      [subject || "", intro || "", file_name || "", file_size || ""]
+      [subject, intro, fileName, fileSize]
     );
   } catch (err) {
     console.error("MAIL SETTINGS ERROR:", err.message);
   }
 
-  res.redirect("/admin");
+  return res.redirect("/admin");
 });
 
 // =======================
@@ -738,9 +823,9 @@ app.get("/admin", requireAdmin, async (req, res) => {
       `SELECT COUNT(*) FROM employees WHERE active = true`
     );
 
-    const clicked = parseInt(totalClicks.rows[0].count, 10);
-    const registered = parseInt(totalRegs.rows[0].count, 10);
-    const total = parseInt(totalEmployees.rows[0].count, 10);
+    const clicked = parseInt(totalClicks.rows[0].count, 10) || 0;
+    const registered = parseInt(totalRegs.rows[0].count, 10) || 0;
+    const total = parseInt(totalEmployees.rows[0].count, 10) || 0;
     const notClicked = Math.max(0, total - clicked);
     const clickedNotReg = Math.max(0, clicked - registered);
 
@@ -753,12 +838,12 @@ app.get("/admin", requireAdmin, async (req, res) => {
           <td>${escapeHtml(r.department)}</td>
           <td>${escapeHtml(r.phone)}</td>
           <td>${escapeHtml(r.email)}</td>
-          <td>${escapeHtml(r.created_at)}</td>
+          <td>${escapeHtml(formatDate(r.created_at))}</td>
           <td>${escapeHtml(r.ip)}</td>
           <td>
             <form method="POST" action="/delete">
-              <input type="hidden" name="id" value="${escapeHtml(r.id)}">
-              <button onclick="return confirm('אתה בטוח?')">מחק</button>
+              <input type="hidden" name="id" value="${escapeAttr(r.id)}">
+              <button type="submit" onclick="return confirm('למחוק נרשם זה?')">מחק</button>
             </form>
           </td>
         </tr>`;
@@ -770,7 +855,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
         <tr>
           <td>${escapeHtml(v.employee_name)}</td>
           <td>${escapeHtml(v.employee_email)}</td>
-          <td>${escapeHtml(v.clicked_at || "")}</td>
+          <td>${escapeHtml(formatDate(v.clicked_at))}</td>
           <td>${escapeHtml(v.ip)}</td>
           <td>${escapeHtml(v.click_count || 0)}</td>
         </tr>`;
@@ -785,8 +870,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
           <td>${e.active ? "✅" : "❌"}</td>
           <td>
             <form method="POST" action="/admin/delete-employee">
-              <input type="hidden" name="id" value="${escapeHtml(e.id)}">
-              <button onclick="return confirm('למחוק?')">מחק</button>
+              <input type="hidden" name="id" value="${escapeAttr(e.id)}">
+              <button type="submit" onclick="return confirm('למחוק עובד זה?')">מחק</button>
             </form>
           </td>
         </tr>`;
@@ -831,15 +916,15 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
           <div class="stats">
             <div class="card">
-              <div class="big-number">${totalClicks.rows[0].count}</div>
+              <div class="big-number">${clicked}</div>
               <div class="label">👆 לחיצות</div>
             </div>
             <div class="card">
-              <div class="big-number">${totalRegs.rows[0].count}</div>
+              <div class="big-number">${registered}</div>
               <div class="label">✅ נרשמים</div>
             </div>
             <div class="card">
-              <div class="big-number">${totalEmployees.rows[0].count}</div>
+              <div class="big-number">${total}</div>
               <div class="label">👥 עובדים</div>
             </div>
           </div>
@@ -851,18 +936,18 @@ app.get("/admin", requireAdmin, async (req, res) => {
               <button type="submit" onclick="return confirm('בטוח לשלוח לכל העובדים?')">📤 שלח מיילים</button>
             </form>
 
-            <form method="POST" action="/admin/reset-clicks" onsubmit="return confirm('בטוח לאפס?')">
-              <button class="reset-clicks-btn">איפוס קליקים ⚠️</button>
+            <form method="POST" action="/admin/reset-clicks" onsubmit="return confirm('בטוח לאפס את כל הקליקים?')">
+              <button type="submit" class="reset-clicks-btn">איפוס קליקים ⚠️</button>
             </form>
           </div>
 
           <div class="tabs">
-            <button class="tab-btn active" onclick="showTab('employees', this)">👥 עובדים (${total})</button>
-            <button class="tab-btn" onclick="showTab('registrations', this)">✅ נרשמים (${registered})</button>
-            <button class="tab-btn" onclick="showTab('clicks', this)">👆 קליקים (${clicked})</button>
-            <button class="tab-btn" onclick="showTab('mails', this)">📤 מיילים</button>
-            <button class="tab-btn" onclick="showTab('settings', this)">⚙️ הגדרות</button>
-            <button class="tab-btn" onclick="showTab('stats', this)">📊 גרף</button>
+            <button type="button" class="tab-btn active" onclick="showTab('employees', this)">👥 עובדים (${total})</button>
+            <button type="button" class="tab-btn" onclick="showTab('registrations', this)">✅ נרשמים (${registered})</button>
+            <button type="button" class="tab-btn" onclick="showTab('clicks', this)">👆 קליקים (${clicked})</button>
+            <button type="button" class="tab-btn" onclick="showTab('mails', this)">📤 מיילים</button>
+            <button type="button" class="tab-btn" onclick="showTab('settings', this)">⚙️ הגדרות</button>
+            <button type="button" class="tab-btn" onclick="showTab('stats', this)">📊 גרף</button>
           </div>
 
           <div id="tab-employees" class="tab-content active">
@@ -897,6 +982,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
           <div id="tab-registrations" class="tab-content">
             <h3>✅ נרשמים</h3>
             <input type="text" id="search" placeholder="🔍 חפש..." onkeyup="searchTable()">
+
             <table id="reg-table">
               <tr>
                 <th>שם</th>
@@ -914,6 +1000,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
           <div id="tab-clicks" class="tab-content">
             <h3>👆 לחצו ולא נרשמו</h3>
+
             <table>
               <tr>
                 <th>שם עובד</th>
@@ -928,8 +1015,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
           <div id="tab-mails" class="tab-content">
             <h3>📤 סטטוס שליחת מיילים</h3>
-            <p>מצב: ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}</p>
-            <p>סך הכל: ${mailJob.total} | נשלחו: ${mailJob.sent} | נכשלו: ${mailJob.failed}</p>
+            <p id="mailStatusText">מצב: ${mailJob.running ? "רץ עכשיו 🟡" : "לא רץ ⚪"}</p>
+            <p id="mailCountsText">סך הכל: ${mailJob.total} | נשלחו: ${mailJob.sent} | נכשלו: ${mailJob.failed}</p>
 
             <table>
               <tr>
@@ -949,16 +1036,16 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
             <form method="POST" action="/admin/mail-settings" class="settings-form">
               <label>נושא המייל</label>
-              <input type="text" name="subject" value="${escapeHtml(settings.subject)}" required>
+              <input type="text" name="subject" value="${escapeAttr(settings.subject)}" required>
 
               <label>תוכן המייל - פתיח</label>
-              <input type="text" name="intro" value="${escapeHtml(settings.intro)}" required>
+              <input type="text" name="intro" value="${escapeAttr(settings.intro)}" required>
 
               <label>שם הקובץ</label>
-              <input type="text" name="file_name" value="${escapeHtml(settings.file_name)}" required>
+              <input type="text" name="file_name" value="${escapeAttr(settings.file_name)}" required>
 
               <label>גודל הקובץ</label>
-              <input type="text" name="file_size" value="${escapeHtml(settings.file_size)}" required>
+              <input type="text" name="file_size" value="${escapeAttr(settings.file_size)}" required>
 
               <button type="submit">💾 שמור שינויים</button>
             </form>
@@ -974,36 +1061,56 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
         <script>
           function showTab(name, btn) {
-            document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-            document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-            document.getElementById("tab-" + name).classList.add("active");
-            btn.classList.add("active");
+            document.querySelectorAll(".tab-content").forEach(function(el) {
+              el.classList.remove("active");
+            });
+
+            document.querySelectorAll(".tab-btn").forEach(function(el) {
+              el.classList.remove("active");
+            });
+
+            var tab = document.getElementById("tab-" + name);
+            if (tab) tab.classList.add("active");
+            if (btn) btn.classList.add("active");
+
             localStorage.setItem("activeTab", name);
           }
 
-          const savedTab = localStorage.getItem("activeTab");
-          if (savedTab) {
-            const tabEl = document.getElementById("tab-" + savedTab);
-            if (tabEl) {
-              document.querySelectorAll(".tab-content").forEach(el => el.classList.remove("active"));
-              document.querySelectorAll(".tab-btn").forEach(el => el.classList.remove("active"));
-              tabEl.classList.add("active");
+          function restoreSavedTab() {
+            var savedTab = localStorage.getItem("activeTab");
+            if (!savedTab) return;
 
-              document.querySelectorAll(".tab-btn").forEach(btn => {
-                if (btn.getAttribute("onclick") && btn.getAttribute("onclick").includes("'" + savedTab + "'")) {
-                  btn.classList.add("active);
-                }
-              });
-            }
+            var tabEl = document.getElementById("tab-" + savedTab);
+            if (!tabEl) return;
+
+            document.querySelectorAll(".tab-content").forEach(function(el) {
+              el.classList.remove("active");
+            });
+
+            document.querySelectorAll(".tab-btn").forEach(function(el) {
+              el.classList.remove("active");
+            });
+
+            tabEl.classList.add("active");
+
+            document.querySelectorAll(".tab-btn").forEach(function(btn) {
+              var clickValue = btn.getAttribute("onclick") || "";
+              if (clickValue.indexOf("'" + savedTab + "'") !== -1) {
+                btn.classList.add("active");
+              }
+            });
           }
 
           function searchTable() {
-            const input = document.getElementById("search").value.toLowerCase();
-            const rows = document.querySelectorAll("#reg-table tr");
+            var inputEl = document.getElementById("search");
+            if (!inputEl) return;
 
-            rows.forEach((row, i) => {
+            var input = inputEl.value.toLowerCase();
+            var rows = document.querySelectorAll("#reg-table tr");
+
+            rows.forEach(function(row, i) {
               if (i === 0) return;
-              row.style.display = row.innerText.toLowerCase().includes(input) ? "" : "none";
+              row.style.display = row.innerText.toLowerCase().indexOf(input) !== -1 ? "" : "none";
             });
           }
 
@@ -1013,10 +1120,29 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
           async function updateMailStatus() {
             try {
-              const res = await fetch("/admin/mail-status");
-              const data = await res.json();
+              var res = await fetch("/admin/mail-status");
+              if (!res.ok) {
+                setTimeout(updateMailStatus, 3000);
+                return;
+              }
 
-              const table = document.getElementById("mailJobTable");
+              var data = await res.json();
+
+              var statusText = document.getElementById("mailStatusText");
+              var countsText = document.getElementById("mailCountsText");
+
+              if (statusText) {
+                statusText.textContent = "מצב: " + (data.running ? "רץ עכשיו 🟡" : "לא רץ ⚪");
+              }
+
+              if (countsText) {
+                countsText.textContent =
+                  "סך הכל: " + safeText(data.total) +
+                  " | נשלחו: " + safeText(data.sent) +
+                  " | נכשלו: " + safeText(data.failed);
+              }
+
+              var table = document.getElementById("mailJobTable");
               if (!table || !Array.isArray(data.results)) {
                 setTimeout(updateMailStatus, 2000);
                 return;
@@ -1024,25 +1150,25 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
               table.innerHTML = "";
 
-              data.results.forEach(r => {
-                const status = safeText(r.status);
-                const color = status === "נשלח" ? "#22c55e" : status === "בתהליך" ? "#f59e0b" : "#ef4444";
-                const icon = status === "נשלח" ? "✅" : status === "בתהליך" ? "⏳" : "❌";
+              data.results.forEach(function(r) {
+                var status = safeText(r.status);
+                var color = status === "נשלח" ? "#22c55e" : status === "בתהליך" ? "#f59e0b" : "#ef4444";
+                var icon = status === "נשלח" ? "✅" : status === "בתהליך" ? "⏳" : "❌";
 
-                const tr = document.createElement("tr");
+                var tr = document.createElement("tr");
 
-                const tdName = document.createElement("td");
+                var tdName = document.createElement("td");
                 tdName.textContent = safeText(r.name);
 
-                const tdEmail = document.createElement("td");
+                var tdEmail = document.createElement("td");
                 tdEmail.textContent = safeText(r.email);
 
-                const tdStatus = document.createElement("td");
+                var tdStatus = document.createElement("td");
                 tdStatus.style.color = color;
                 tdStatus.style.fontWeight = "bold";
                 tdStatus.textContent = icon + " " + status;
 
-                const tdError = document.createElement("td");
+                var tdError = document.createElement("td");
                 if (r.error) tdError.style.color = "#ef4444";
                 tdError.textContent = safeText(r.error);
 
@@ -1054,45 +1180,52 @@ app.get("/admin", requireAdmin, async (req, res) => {
                 table.appendChild(tr);
               });
 
-              if (data.running) setTimeout(updateMailStatus, 2000);
+              setTimeout(updateMailStatus, data.running ? 2000 : 6000);
             } catch (err) {
               setTimeout(updateMailStatus, 3000);
             }
           }
 
-          updateMailStatus();
+          function initChart() {
+            var canvas = document.getElementById("statsChart");
+            if (!canvas || typeof Chart === "undefined") return;
 
-          const ctx = document.getElementById("statsChart").getContext("2d");
+            var ctx = canvas.getContext("2d");
 
-          new Chart(ctx, {
-            type: "doughnut",
-            data: {
-              labels: ["נרשמו ✅", "לחצו ולא נרשמו 👆", "לא לחצו ❌"],
-              datasets: [{
-                data: [${registered}, ${clickedNotReg}, ${notClicked}],
-                backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"],
-                borderWidth: 2,
-                borderColor: "#111827"
-              }]
-            },
-            options: {
-              plugins: {
-                legend: {
-                  labels: {
-                    color: "#e5e7eb",
-                    font: { size: 14 }
+            new Chart(ctx, {
+              type: "doughnut",
+              data: {
+                labels: ["נרשמו ✅", "לחצו ולא נרשמו 👆", "לא לחצו ❌"],
+                datasets: [{
+                  data: [${registered}, ${clickedNotReg}, ${notClicked}],
+                  backgroundColor: ["#22c55e", "#f59e0b", "#ef4444"],
+                  borderWidth: 2,
+                  borderColor: "#111827"
+                }]
+              },
+              options: {
+                plugins: {
+                  legend: {
+                    labels: {
+                      color: "#e5e7eb",
+                      font: { size: 14 }
+                    }
                   }
                 }
               }
-            }
-          });
+            });
+          }
+
+          restoreSavedTab();
+          updateMailStatus();
+          initChart();
         </script>
       </body>
       </html>
     `);
   } catch (err) {
     console.error("ADMIN ERROR:", err.message);
-    res.status(500).send("שגיאה בטעינת אדמין");
+    return res.status(500).send("שגיאה בטעינת אדמין");
   }
 });
 
@@ -1102,24 +1235,56 @@ app.get("/admin", requireAdmin, async (req, res) => {
 app.post("/admin/reset-clicks", requireAdmin, async (req, res) => {
   try {
     await pool.query("TRUNCATE clicks RESTART IDENTITY");
-    res.redirect("/admin");
   } catch (err) {
     console.error("RESET CLICKS ERROR:", err.message);
-    res.status(500).send("שגיאה באיפוס");
   }
+
+  return res.redirect("/admin");
 });
 
 // =======================
 // DELETE REGISTRATION
 // =======================
 app.post("/delete", requireAdmin, async (req, res) => {
-  try {
-    await pool.query("DELETE FROM registrations WHERE id = $1", [req.body.id]);
-    res.redirect("/admin");
-  } catch (err) {
-    console.error("DELETE ERROR:", err.message);
-    res.status(500).send("שגיאה במחיקה");
+  const id = Number(req.body.id);
+
+  if (!Number.isInteger(id) || id <= 0) {
+    return res.redirect("/admin");
   }
+
+  const client = await pool.connect();
+
+  try {
+    await client.query("BEGIN");
+
+    const deleted = await client.query(
+      "DELETE FROM registrations WHERE id = $1 RETURNING token",
+      [id]
+    );
+
+    const token = deleted.rows[0]?.token || null;
+
+    if (token) {
+      const remaining = await client.query(
+        "SELECT 1 FROM registrations WHERE token = $1 LIMIT 1",
+        [token]
+      );
+
+      await client.query(
+        "UPDATE clicks SET registered = $1 WHERE token = $2",
+        [remaining.rowCount > 0, token]
+      );
+    }
+
+    await client.query("COMMIT");
+  } catch (err) {
+    await client.query("ROLLBACK");
+    console.error("DELETE REGISTRATION ERROR:", err.message);
+  } finally {
+    client.release();
+  }
+
+  return res.redirect("/admin");
 });
 
 // =======================
