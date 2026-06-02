@@ -1333,9 +1333,11 @@ app.post("/delete", requireAdmin, async (req, res) => {
     return res.redirect("/admin");
   }
 
-  const client = await pool.connect();
+  let client;
 
   try {
+    client = await pool.connect();
+
     await client.query("BEGIN");
 
     const deleted = await client.query(
@@ -1359,10 +1361,19 @@ app.post("/delete", requireAdmin, async (req, res) => {
 
     await client.query("COMMIT");
   } catch (err) {
-    await client.query("ROLLBACK");
+    if (client) {
+      try {
+        await client.query("ROLLBACK");
+      } catch (rollbackErr) {
+        console.error("DELETE REGISTRATION ROLLBACK ERROR:", rollbackErr.message);
+      }
+    }
+
     console.error("DELETE REGISTRATION ERROR:", err.message);
   } finally {
-    client.release();
+    if (client) {
+      client.release();
+    }
   }
 
   return res.redirect("/admin");
