@@ -86,6 +86,15 @@ const transporter = nodemailer.createTransport({
   },
 });
 
+console.log("SMTP CONFIG DEBUG:", {
+  host: smtpHost,
+  port: smtpPort,
+  secure: smtpSecure,
+  user: mailUser,
+  from: mailFrom,
+  hasPassword: Boolean(mailPass),
+});
+
 transporter.verify((err) => {
   if (err) {
     console.error("SMTP ERROR:", err.message);
