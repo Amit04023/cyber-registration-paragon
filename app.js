@@ -22,9 +22,6 @@ const upload = multer({
 app.set("view engine", "ejs");
 app.set("views", path.join(__dirname, "views"));
 
-const BASE_URL =
-  cleanEnv(process.env.BASE_URL) || "https://cyber-registration-paragon.onrender.com";
-
 // =======================
 // HELPERS
 // =======================
@@ -85,12 +82,7 @@ function createToken(email) {
 }
 
 function getClientIp(req) {
-  const forwarded = req.headers["x-forwarded-for"];
-  if (forwarded) {
-    return String(forwarded).split(",")[0].trim();
-  }
-
-  return req.socket.remoteAddress || "";
+  return req.ip || req.socket.remoteAddress || "";
 }
 
 function normalizeEmail(email) {
@@ -101,12 +93,23 @@ function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
 }
 
+const BASE_URL =
+  cleanEnv(process.env.BASE_URL) || "https://cyber-registration-paragon.onrender.com";
+
+const IS_PRODUCTION = process.env.NODE_ENV === "production";
+const SESSION_SECRET = cleanEnv(process.env.SESSION_SECRET);
+
+if (IS_PRODUCTION && !SESSION_SECRET) {
+  console.error("SESSION CONFIG ERROR: Missing SESSION_SECRET in production");
+  process.exit(1);
+}
+
 // =======================
 // DATABASE
 // =======================
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+  ssl: IS_PRODUCTION ? { rejectUnauthorized: false } : false,
 });
 
 // =======================
@@ -300,7 +303,7 @@ function buildConfirmationEmailHtml(fullName) {
 
         <ul style="padding-right:20px; margin:0; font-size:15px;">
           <li style="margin-bottom:6px;">📅 תאריך: <strong>16/06</strong></li>
-          <li style="margin-bottom:6px;">⏰ שעה: <strong>14:30</strong></li>
+          <li style="margin-bottom:6px;">⏰ שעה: <strong>15:00</strong></li>
           <li style="margin-bottom:6px;">💻 פלטפורמה: <strong>Zoom</strong></li>
         </ul>
       </div>
@@ -337,11 +340,11 @@ app.use(
       tableName: "session",
       createTableIfMissing: true,
     }),
-    secret: process.env.SESSION_SECRET || "dev-secret",
+    secret: SESSION_SECRET || "dev-secret-local-only",
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === "production",
+      secure: IS_PRODUCTION,
       httpOnly: true,
       sameSite: "lax",
       maxAge: 1000 * 60 * 60 * 24,
@@ -384,6 +387,25 @@ async function initDb() {
   await pool.query(`ALTER TABLE registrations ADD COLUMN IF NOT EXISTS department TEXT`);
 
   await pool.query(`
+    CREATE INDEX IF NOT EXISTS registrations_email_lookup_idx
+    ON registrations (LOWER(email))
+  `);
+
+  try {
+    await pool.query(`
+      CREATE UNIQUE INDEX IF NOT EXISTS registrations_email_unique_idx
+      ON registrations (LOWER(email))
+      WHERE email IS NOT NULL AND email <> ''
+    `);
+  } catch (err) {
+    console.warn(
+      "REGISTRATIONS UNIQUE EMAIL INDEX WARNING:",
+      "Could not create unique index. Existing duplicate emails may exist.",
+      err.message
+    );
+  }
+
+  await pool.query(`
     CREATE TABLE IF NOT EXISTS clicks (
       id SERIAL PRIMARY KEY,
       token TEXT,
@@ -394,6 +416,11 @@ async function initDb() {
       clicked_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
       registered BOOLEAN DEFAULT FALSE
     )
+  `);
+
+  await pool.query(`
+    CREATE INDEX IF NOT EXISTS clicks_token_idx
+    ON clicks (token)
   `);
 
   await pool.query(`
@@ -424,10 +451,6 @@ async function initDb() {
 
   console.log("Database ready ✅");
 }
-
-initDb().catch((err) => {
-  console.error("DB INIT ERROR:", err);
-});
 
 // =======================
 // HOME + CLICK TRACKING
@@ -499,27 +522,73 @@ app.post("/register", async (req, res) => {
     return res.status(400).send("אימייל לא תקין");
   }
 
+  let registrationSaved = false;
+
   try {
     const ip = getClientIp(req);
 
-    await pool.query(
+    const existing = await pool.query(
       `
-      INSERT INTO registrations
-      (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+      SELECT id
+      FROM registrations
+      WHERE LOWER(email) = LOWER($1)
+      ORDER BY created_at DESC
+      LIMIT 1
       `,
-      [
-        fullName,
-        company,
-        phone,
-        email,
-        token || null,
-        ip,
-        req.headers["user-agent"] || "",
-        "submitted",
-        department,
-      ]
+      [email]
     );
+
+    if (existing.rowCount > 0) {
+      await pool.query(
+        `
+        UPDATE registrations
+        SET full_name = $1,
+            company = $2,
+            phone = $3,
+            email = $4,
+            token = COALESCE($5, token),
+            ip = $6,
+            user_agent = $7,
+            simulation_result = $8,
+            department = $9,
+            created_at = CURRENT_TIMESTAMP
+        WHERE id = $10
+        `,
+        [
+          fullName,
+          company,
+          phone,
+          email,
+          token || null,
+          ip,
+          req.headers["user-agent"] || "",
+          "submitted",
+          department,
+          existing.rows[0].id,
+        ]
+      );
+    } else {
+      await pool.query(
+        `
+        INSERT INTO registrations
+        (full_name, company, phone, email, token, ip, user_agent, simulation_result, department)
+        VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+        `,
+        [
+          fullName,
+          company,
+          phone,
+          email,
+          token || null,
+          ip,
+          req.headers["user-agent"] || "",
+          "submitted",
+          department,
+        ]
+      );
+    }
+
+    registrationSaved = true;
 
     if (token) {
       await pool.query(
@@ -531,19 +600,25 @@ app.post("/register", async (req, res) => {
         [token]
       );
     }
-
-    await transporter.sendMail({
-      from: mailFrom,
-      to: email,
-      subject: "אישור הרשמה להרצאת סייבר",
-      html: buildConfirmationEmailHtml(fullName),
-    });
-
-    return res.sendFile(path.join(__dirname, "views", "success.html"));
   } catch (err) {
-    console.error("REGISTER ERROR:", err.message);
-    return res.status(500).send("שגיאה בהרשמה או בשליחת מייל");
+    console.error("REGISTER DB ERROR:", err.message);
+    return res.status(500).send("שגיאה בהרשמה");
   }
+
+  if (registrationSaved) {
+    try {
+      await transporter.sendMail({
+        from: mailFrom,
+        to: email,
+        subject: "אישור הרשמה להרצאת סייבר",
+        html: buildConfirmationEmailHtml(fullName),
+      });
+    } catch (mailErr) {
+      console.error("CONFIRMATION MAIL FAILED - REGISTRATION STILL SAVED:", mailErr.message);
+    }
+  }
+
+  return res.sendFile(path.join(__dirname, "views", "success.html"));
 });
 
 // =======================
@@ -818,16 +893,22 @@ app.get("/admin", requireAdmin, async (req, res) => {
     const settings = mailSettings.rows[0];
 
     const totalClicks = await pool.query(`SELECT COUNT(*) FROM clicks`);
+    const uniqueClickedTokens = await pool.query(`
+      SELECT COUNT(DISTINCT token)
+      FROM clicks
+      WHERE token IS NOT NULL AND token <> ''
+    `);
     const totalRegs = await pool.query(`SELECT COUNT(*) FROM registrations`);
     const totalEmployees = await pool.query(
       `SELECT COUNT(*) FROM employees WHERE active = true`
     );
 
     const clicked = parseInt(totalClicks.rows[0].count, 10) || 0;
+    const uniqueClicked = parseInt(uniqueClickedTokens.rows[0].count, 10) || 0;
     const registered = parseInt(totalRegs.rows[0].count, 10) || 0;
     const total = parseInt(totalEmployees.rows[0].count, 10) || 0;
-    const notClicked = Math.max(0, total - clicked);
-    const clickedNotReg = Math.max(0, clicked - registered);
+    const clickedNotReg = clickedNotRegistered.rows.length;
+    const notClicked = Math.max(0, total - uniqueClicked);
 
     let registrationRows = "";
     registrations.rows.forEach((r) => {
@@ -1299,6 +1380,13 @@ app.get("/logout", (req, res) => {
 // =======================
 const port = process.env.PORT || 3000;
 
-app.listen(port, "0.0.0.0", () => {
-  console.log("✅ Server running on port " + port);
-});
+initDb()
+  .then(() => {
+    app.listen(port, "0.0.0.0", () => {
+      console.log("✅ Server running on port " + port);
+    });
+  })
+  .catch((err) => {
+    console.error("DB INIT FAILED:", err);
+    process.exit(1);
+  });
