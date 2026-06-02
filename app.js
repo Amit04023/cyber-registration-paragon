@@ -30,14 +30,8 @@ function escapeHtml(str) {
     .replace(/'/g, "&#039;");
 }
 
-function escapeJsString(str) {
-  if (!str) return "";
-  return String(str)
-    .replace(/\\/g, "\\\\")
-    .replace(/`/g, "\\`")
-    .replace(/\$/g, "\\$")
-    .replace(/</g, "\\u003C")
-    .replace(/>/g, "\\u003E");
+function escapeAttr(str) {
+  return escapeHtml(str).replace(/`/g, "&#096;");
 }
 
 // =======================
@@ -63,11 +57,11 @@ const mailPass =
 
 const mailFrom =
   process.env.SMTP_FROM ||
-  (mailUser ? `"Paragon group" <${mailUser}>` : undefined);
+  (mailUser ? `Paragon group <${mailUser}>` : undefined);
 
 const smtpHost = process.env.SMTP_HOST || "smtppro.zoho.com";
 const smtpPort = Number(process.env.SMTP_PORT || 587);
-const smtpSecure = process.env.SMTP_SECURE === "true";
+const smtpSecure = String(process.env.SMTP_SECURE || "false").toLowerCase() === "true";
 
 if (!mailUser || !mailPass) {
   console.error("MAIL CONFIG ERROR: Missing SMTP/SEND/REGISTER email user or password");
@@ -77,12 +71,10 @@ const transporter = nodemailer.createTransport({
   host: smtpHost,
   port: smtpPort,
   secure: smtpSecure,
+  requireTLS: smtpPort === 587,
   auth: {
     user: mailUser,
     pass: mailPass,
-  },
-  tls: {
-    rejectUnauthorized: true,
   },
 });
 
@@ -139,6 +131,102 @@ function getClientIp(req) {
     req.socket.remoteAddress ||
     ""
   );
+}
+
+// =======================
+// EMAIL HTML: REALISTIC PDF CARD
+// =======================
+function buildPdfEmailHtml({ employeeName, intro, fileName, fileSize, link }) {
+  const safeName = escapeHtml(employeeName);
+  const safeIntro = escapeHtml(intro);
+  const safeFileName = escapeHtml(fileName);
+  const safeFileSize = escapeHtml(fileSize);
+  const safeLink = escapeAttr(link);
+
+  return `
+    <!DOCTYPE html>
+    <html lang="he" dir="rtl">
+    <head>
+      <meta charset="UTF-8">
+      <title>${safeFileName}</title>
+    </head>
+    <body style="margin:0; padding:0; background:#f5f6f8; direction:rtl;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background:#f5f6f8; border-collapse:collapse; direction:rtl;">
+        <tr>
+          <td align="right" style="padding:24px 16px; font-family:Arial, Helvetica, sans-serif;">
+            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="max-width:560px; background:#ffffff; border-collapse:collapse; border:1px solid #e5e7eb;">
+              <tr>
+                <td style="padding:24px 24px 10px 24px; font-family:Arial, Helvetica, sans-serif; color:#202124; text-align:right;">
+                  <p style="margin:0 0 14px 0; font-size:15px; line-height:1.7;">שלום ${safeName},</p>
+                  <p style="margin:0 0 8px 0; font-size:15px; line-height:1.7;">${safeIntro}</p>
+                  <p style="margin:0 0 18px 0; font-size:12px; line-height:1.5; color:#777777;">Last changed: Thursday, March 17, 2022</p>
+                </td>
+              </tr>
+
+              <tr>
+                <td align="right" style="padding:0 24px 22px 24px;">
+                  <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:separate; border-spacing:0; width:100%; max-width:430px; background:#ffffff; border:1px solid #d9dde3; border-radius:10px;">
+                    <tr>
+                      <td style="padding:14px 14px 14px 10px; width:58px; vertical-align:top;">
+                        <a href="${safeLink}" target="_blank" style="text-decoration:none; display:inline-block;">
+                          <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                            <tr>
+                              <td align="center" style="width:42px; height:52px; background:#ffffff; border:1px solid #cfd4dc; border-radius:4px; font-family:Arial, Helvetica, sans-serif;">
+                                <div style="height:11px; line-height:11px; font-size:1px; background:#eef2f7; border-bottom:1px solid #d9dde3;">&nbsp;</div>
+                                <div style="padding-top:8px; font-size:9px; line-height:12px; color:#9ca3af;">FILE</div>
+                                <div style="margin:4px auto 0 auto; width:34px; background:#d93025; color:#ffffff; font-size:10px; line-height:16px; font-weight:bold; text-align:center; border-radius:2px;">PDF</div>
+                              </td>
+                            </tr>
+                          </table>
+                        </a>
+                      </td>
+
+                      <td style="padding:14px 4px 14px 8px; vertical-align:top; font-family:Arial, Helvetica, sans-serif; text-align:right;">
+                        <a href="${safeLink}" target="_blank" style="font-size:14px; line-height:20px; color:#1a73e8; font-weight:bold; text-decoration:none;">
+                          ${safeFileName}
+                        </a>
+                        <div style="font-size:12px; line-height:18px; color:#6b7280; margin-top:2px;">
+                          Adobe Acrobat Document · ${safeFileSize}
+                        </div>
+                        <div style="font-size:11px; line-height:16px; color:#9ca3af; margin-top:5px;">
+                          לחץ לפתיחה או הורדה של הקובץ
+                        </div>
+                      </td>
+
+                      <td style="padding:14px 12px 14px 10px; width:34px; vertical-align:middle; text-align:center;">
+                        <a href="${safeLink}" target="_blank" style="font-size:22px; line-height:22px; color:#9ca3af; text-decoration:none;">&#8964;</a>
+                      </td>
+                    </tr>
+
+                    <tr>
+                      <td colspan="3" style="padding:0 14px 14px 14px;">
+                        <table role="presentation" cellpadding="0" cellspacing="0" border="0" style="border-collapse:collapse;">
+                          <tr>
+                            <td bgcolor="#1a73e8" style="border-radius:6px;">
+                              <a href="${safeLink}" target="_blank" style="display:inline-block; padding:10px 22px; font-family:Arial, Helvetica, sans-serif; font-size:13px; font-weight:bold; color:#ffffff; text-decoration:none; border-radius:6px;">
+                                פתח קובץ PDF
+                              </a>
+                            </td>
+                          </tr>
+                        </table>
+                      </td>
+                    </tr>
+                  </table>
+                </td>
+              </tr>
+
+              <tr>
+                <td style="padding:0 24px 24px 24px; font-family:Arial, Helvetica, sans-serif; color:#777777; text-align:right;">
+                  <p style="margin:0; font-size:12px; line-height:1.6;">Paragon Group</p>
+                </td>
+              </tr>
+            </table>
+          </td>
+        </tr>
+      </table>
+    </body>
+    </html>
+  `;
 }
 
 // =======================
@@ -338,21 +426,48 @@ app.post("/register", async (req, res) => {
       from: mailFrom,
       to: email,
       subject: "אישור הרשמה להרצאת סייבר",
-      html: `
-        <div dir="rtl" style="font-family:Arial; line-height:1.6">
-          <h2>שלום ${escapeHtml(full_name)},</h2>
-          <p>נרשמת בהצלחה להרצאת הסייבר של Paragon 🔐</p>
-          <p><strong>פרטי ההרצאה:</strong></p>
-          <ul style="padding-right:20px">
-            <li>📅 תאריך: X</li>
-            <li>⏰ שעה: X</li>
-            <li>💻 פלטפורמה: Zoom</li>
-          </ul>
-          <p>קישור לזום יישלח סמוך למועד ההרצאה.</p>
-          <br>
-          <p>נתראה בהרצאה,<br>Paragon group</p>
-        </div>
-      `,
+        html: `
+          <div dir="rtl" style="font-family:Arial, Helvetica, sans-serif; line-height:1.7; color:#202124; max-width:560px;">
+            <h2 style="margin:0 0 12px 0; color:#111827;">
+              שלום ${escapeHtml(full_name)} 👋
+            </h2>
+
+            <p style="font-size:16px; margin:0 0 14px 0;">
+              נרשמת בהצלחה להרצאת הסייבר של <strong>Paragon</strong> 🔐
+            </p>
+
+            <p style="margin:0 0 14px 0;">
+              מעולה, אתה בפנים. מבטיחים בלי מבחן בסוף, בלי שיעורי בית, ובלי שמישהו יבקש ממך את הסיסמה שלך 😉
+            </p>
+
+            <div style="background:#f8fafc; border:1px solid #e5e7eb; border-radius:12px; padding:16px 18px; margin:18px 0;">
+              <p style="margin:0 0 10px 0; font-weight:bold; font-size:16px;">
+                פרטי ההרצאה:
+              </p>
+
+              <ul style="padding-right:20px; margin:0; font-size:15px;">
+                <li style="margin-bottom:6px;">📅 תאריך: <strong>16/06</strong></li>
+                <li style="margin-bottom:6px;">⏰ שעה: <strong>14:30</strong></li>
+                <li style="margin-bottom:6px;">💻 פלטפורמה: <strong>Zoom</strong></li>
+              </ul>
+            </div>
+
+            <p style="margin:0 0 14px 0;">
+              קישור לזום יישלח סמוך למועד ההרצאה.
+            </p>
+
+            <p style="margin:0 0 14px 0;">
+              עד אז — לא לוחצים על קישורים חשודים, גם אם הם נראים ממש משכנעים 😄
+            </p>
+
+            <br>
+
+            <p style="margin:0;">
+              נתראה בהרצאה,<br>
+              <strong>Paragon group</strong>
+            </p>
+          </div>
+        `,
     });
 
     res.sendFile(path.join(__dirname, "views", "success.html"));
@@ -394,39 +509,13 @@ async function sendTrackingEmails() {
         from: mailFrom,
         to: emp.email,
         subject: settings.subject,
-        html: `
-          <div dir="rtl" style="font-family: Arial, sans-serif; color: #222; line-height: 1.7; max-width: 480px;">
-            <p>שלום ${escapeHtml(emp.name)},</p>
-            <p>${escapeHtml(settings.intro)}</p>
-            <p style="font-size: 12px; color: #888;">Last changed: Thursday, March 17, 2022</p>
-
-            <table cellpadding="0" cellspacing="0" border="0" style="background: #ffffff; border: 1px solid #d6d6d6; border-radius: 12px; min-width: 240px; max-width: 290px; box-shadow: 0 1px 4px rgba(0,0,0,0.08);">
-              <tr>
-                <td style="padding: 12px 8px 12px 14px; vertical-align: middle; width: 48px;">
-                  <svg width="38" height="46" viewBox="0 0 38 46" xmlns="http://www.w3.org/2000/svg">
-                    <path d="M4 0 H26 L38 12 V42 Q38 46 34 46 H4 Q0 46 0 42 V4 Q0 0 4 0Z" fill="#e8f0fe"/>
-                    <path d="M26 0 L38 12 H28 Q26 12 26 10 Z" fill="#a8c4f5"/>
-                    <rect x="5" y="28" width="28" height="12" rx="2" fill="#ea4335"/>
-                    <text x="19" y="38" font-family="Arial" font-size="8" font-weight="bold" fill="white" text-anchor="middle">PDF</text>
-                    <rect x="6" y="16" width="18" height="2" rx="1" fill="#a8c4f5"/>
-                    <rect x="6" y="21" width="22" height="2" rx="1" fill="#a8c4f5"/>
-                  </svg>
-                </td>
-                <td style="padding: 12px 8px 12px 4px; vertical-align: middle;">
-                  <a href="${link}" style="text-decoration: none; display: block;">
-                    <div style="font-size: 13px; font-weight: 600; color: #0078d4; white-space: nowrap;">${escapeHtml(settings.file_name)}</div>
-                    <div style="font-size: 11px; color: #888; margin-top: 2px;">${escapeHtml(settings.file_size)}</div>
-                  </a>
-                </td>
-                <td style="padding: 12px 14px 12px 8px; vertical-align: middle;">
-                  <a href="${link}" style="color: #aaa; font-size: 16px; text-decoration: none;">&#8964;</a>
-                </td>
-              </tr>
-            </table>
-
-            <p style="margin-top: 20px; font-size: 12px; color: #999;">Paragon Group</p>
-          </div>
-        `,
+        html: buildPdfEmailHtml({
+          employeeName: emp.name,
+          intro: settings.intro,
+          fileName: settings.file_name,
+          fileSize: settings.file_size,
+          link,
+        }),
       });
 
       mailJob.sent++;
@@ -596,12 +685,7 @@ app.post("/admin/mail-settings", requireAdmin, async (req, res) => {
           updated_at = NOW()
       WHERE id = 1
       `,
-      [
-        subject || "",
-        intro || "",
-        file_name || "",
-        file_size || "",
-      ]
+      [subject || "", intro || "", file_name || "", file_size || ""]
     );
   } catch (err) {
     console.error("MAIL SETTINGS ERROR:", err.message);
@@ -907,7 +991,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
               document.querySelectorAll(".tab-btn").forEach(btn => {
                 if (btn.getAttribute("onclick") && btn.getAttribute("onclick").includes("'" + savedTab + "'")) {
-                  btn.classList.add("active");
+                  btn.classList.add("active);
                 }
               });
             }
