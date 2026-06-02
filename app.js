@@ -7,6 +7,7 @@ const path = require("path");
 const crypto = require("crypto");
 const multer = require("multer");
 const csv = require("csv-parse/sync");
+const XLSX = require("xlsx");
 
 const app = express();
 
@@ -15,7 +16,7 @@ app.set("trust proxy", 1);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: {
-    fileSize: 2 * 1024 * 1024,
+    fileSize: 5 * 1024 * 1024,
   },
 });
 
@@ -91,6 +92,11 @@ function normalizeEmail(email) {
 
 function isValidEmail(email) {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(email || "").trim());
+}
+
+function toInt(value, fallback = 0) {
+  const parsed = parseInt(value, 10);
+  return Number.isFinite(parsed) ? parsed : fallback;
 }
 
 const BASE_URL =
@@ -182,6 +188,71 @@ let mailJob = {
   startedAt: null,
   finishedAt: null,
 };
+
+// =======================
+// IMPORT HELPERS: CSV / EXCEL
+// =======================
+function parseEmployeesFile(file) {
+  const originalName = String(file.originalname || "").toLowerCase();
+
+  if (originalName.endsWith(".xlsx") || originalName.endsWith(".xls")) {
+    const workbook = XLSX.read(file.buffer, { type: "buffer" });
+    const firstSheetName = workbook.SheetNames[0];
+
+    if (!firstSheetName) return [];
+
+    const sheet = workbook.Sheets[firstSheetName];
+
+    return XLSX.utils.sheet_to_json(sheet, {
+      defval: "",
+      raw: false,
+    });
+  }
+
+  if (originalName.endsWith(".csv")) {
+    const content = file.buffer.toString("utf-8");
+
+    return csv.parse(content, {
+      columns: true,
+      skip_empty_lines: true,
+      trim: true,
+      bom: true,
+    });
+  }
+
+  throw new Error("Unsupported file type. Upload CSV, XLSX, or XLS only.");
+}
+
+function getEmployeeNameFromRow(row) {
+  return String(
+    row.name ||
+    row.Name ||
+    row["שם"] ||
+    row["שם מלא"] ||
+    row["שם עובד"] ||
+    row["עובד"] ||
+    row.full_name ||
+    row.FullName ||
+    row["Full Name"] ||
+    ""
+  ).trim();
+}
+
+function getEmployeeEmailFromRow(row) {
+  return normalizeEmail(
+    row.email ||
+    row.Email ||
+    row["מייל"] ||
+    row["אימייל"] ||
+    row["מייל עובד"] ||
+    row["אימייל עובד"] ||
+    row.mail ||
+    row.Mail ||
+    row["Email Address"] ||
+    row["כתובת מייל"] ||
+    ""
+  );
+}
 
 // =======================
 // EMAIL HTML: REALISTIC PDF CARD
@@ -303,7 +374,7 @@ function buildConfirmationEmailHtml(fullName) {
 
         <ul style="padding-right:20px; margin:0; font-size:15px;">
           <li style="margin-bottom:6px;">📅 תאריך: <strong>16/06</strong></li>
-          <li style="margin-bottom:6px;">⏰ שעה: <strong>15:00</strong></li>
+          <li style="margin-bottom:6px;">⏰ שעה: <strong>14:30</strong></li>
           <li style="margin-bottom:6px;">💻 פלטפורמה: <strong>Zoom</strong></li>
         </ul>
       </div>
@@ -763,47 +834,69 @@ app.post("/admin/add-employee", requireAdmin, async (req, res) => {
 });
 
 // =======================
-// IMPORT EMPLOYEES FROM CSV
+// IMPORT EMPLOYEES FROM CSV / EXCEL
 // =======================
 app.post("/admin/import-csv", requireAdmin, upload.single("csvfile"), async (req, res) => {
+  let added = 0;
+  let duplicates = 0;
+  let invalid = 0;
+  let total = 0;
+
   try {
-    if (!req.file) return res.redirect("/admin");
+    if (!req.file) {
+      console.error("EMPLOYEES IMPORT ERROR: No file uploaded");
+      return res.redirect("/admin?importError=no_file");
+    }
 
-    const content = req.file.buffer.toString("utf-8");
+    const records = parseEmployeesFile(req.file);
+    total = records.length;
 
-    const records = csv.parse(content, {
-      columns: true,
-      skip_empty_lines: true,
-      trim: true,
-    });
+    console.log("EMPLOYEES IMPORT FILE:", req.file.originalname);
+    console.log("EMPLOYEES IMPORT ROWS:", records.length);
 
-    let added = 0;
+    if (records.length > 0) {
+      console.log("EMPLOYEES IMPORT HEADERS:", Object.keys(records[0]));
+      console.log("EMPLOYEES IMPORT FIRST ROW:", records[0]);
+    }
 
     for (const row of records) {
-      const name = String(row.name || row["שם"] || row.Name || "").trim();
-      const email = normalizeEmail(row.email || row["מייל"] || row.Email || "");
+      const name = getEmployeeNameFromRow(row);
+      const email = getEmployeeEmailFromRow(row);
 
-      if (name && email && isValidEmail(email)) {
-        const insertResult = await pool.query(
-          `
-          INSERT INTO employees (name, email)
-          VALUES ($1, $2)
-          ON CONFLICT (email) DO NOTHING
-          RETURNING id
-          `,
-          [name, email]
-        );
+      if (!name || !email || !isValidEmail(email)) {
+        invalid++;
+        console.log("EMPLOYEES IMPORT SKIPPED INVALID ROW:", row);
+        continue;
+      }
 
-        if (insertResult.rowCount > 0) added++;
+      const insertResult = await pool.query(
+        `
+        INSERT INTO employees (name, email)
+        VALUES ($1, $2)
+        ON CONFLICT (email) DO NOTHING
+        RETURNING id
+        `,
+        [name, email]
+      );
+
+      if (insertResult.rowCount > 0) {
+        added++;
+      } else {
+        duplicates++;
       }
     }
 
-    console.log(`CSV imported: ${added} employees`);
-  } catch (err) {
-    console.error("CSV IMPORT ERROR:", err.message);
-  }
+    console.log(
+      `EMPLOYEES IMPORT DONE: added=${added}, duplicates=${duplicates}, invalid=${invalid}, total=${total}`
+    );
 
-  return res.redirect("/admin");
+    return res.redirect(
+      `/admin?importAdded=${added}&importDuplicates=${duplicates}&importInvalid=${invalid}&importTotal=${total}`
+    );
+  } catch (err) {
+    console.error("EMPLOYEES IMPORT ERROR:", err.message);
+    return res.redirect(`/admin?importError=${encodeURIComponent(err.message)}`);
+  }
 });
 
 // =======================
@@ -906,9 +999,28 @@ app.get("/admin", requireAdmin, async (req, res) => {
     const clicked = parseInt(totalClicks.rows[0].count, 10) || 0;
     const uniqueClicked = parseInt(uniqueClickedTokens.rows[0].count, 10) || 0;
     const registered = parseInt(totalRegs.rows[0].count, 10) || 0;
-    const total = parseInt(totalEmployees.rows[0].count, 10) || 0;
+    const totalEmployeesCount = parseInt(totalEmployees.rows[0].count, 10) || 0;
     const clickedNotReg = clickedNotRegistered.rows.length;
-    const notClicked = Math.max(0, total - uniqueClicked);
+    const notClicked = Math.max(0, totalEmployeesCount - uniqueClicked);
+
+    const importAdded = req.query.importAdded;
+    const importDuplicates = req.query.importDuplicates;
+    const importInvalid = req.query.importInvalid;
+    const importTotal = req.query.importTotal;
+    const importError = req.query.importError;
+
+    let importMessage = "";
+    if (importError) {
+      importMessage = `
+        <div style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:rgba(239,68,68,0.16);border:1px solid rgba(239,68,68,0.45);color:#fecaca;font-weight:bold;">
+          שגיאה בייבוא: ${escapeHtml(importError)}
+        </div>`;
+    } else if (importTotal !== undefined) {
+      importMessage = `
+        <div style="margin:0 0 16px;padding:12px 14px;border-radius:12px;background:rgba(16,185,129,0.14);border:1px solid rgba(16,185,129,0.42);color:#bbf7d0;font-weight:bold;">
+          ייבוא הסתיים: נוספו ${escapeHtml(importAdded)} | כפולים ${escapeHtml(importDuplicates)} | לא תקינים ${escapeHtml(importInvalid)} | סה״כ שורות ${escapeHtml(importTotal)}
+        </div>`;
+    }
 
     let registrationRows = "";
     registrations.rows.forEach((r) => {
@@ -949,6 +1061,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
           <td>${escapeHtml(e.name)}</td>
           <td>${escapeHtml(e.email)}</td>
           <td>${e.active ? "✅" : "❌"}</td>
+          <td>${escapeHtml(formatDate(e.created_at))}</td>
           <td>
             <form method="POST" action="/admin/delete-employee">
               <input type="hidden" name="id" value="${escapeAttr(e.id)}">
@@ -995,6 +1108,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
         <div class="content">
           <h2>מערכת אדמין</h2>
 
+          ${importMessage}
+
           <div class="stats">
             <div class="card">
               <div class="big-number">${clicked}</div>
@@ -1005,8 +1120,8 @@ app.get("/admin", requireAdmin, async (req, res) => {
               <div class="label">✅ נרשמים</div>
             </div>
             <div class="card">
-              <div class="big-number">${total}</div>
-              <div class="label">👥 עובדים</div>
+              <div class="big-number">${totalEmployeesCount}</div>
+              <div class="label">👥 מיילים טעונים</div>
             </div>
           </div>
 
@@ -1023,7 +1138,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
           </div>
 
           <div class="tabs">
-            <button type="button" class="tab-btn active" onclick="showTab('employees', this)">👥 עובדים (${total})</button>
+            <button type="button" class="tab-btn active" onclick="showTab('employees', this)">👥 מיילים טעונים (${totalEmployeesCount})</button>
             <button type="button" class="tab-btn" onclick="showTab('registrations', this)">✅ נרשמים (${registered})</button>
             <button type="button" class="tab-btn" onclick="showTab('clicks', this)">👆 קליקים (${clicked})</button>
             <button type="button" class="tab-btn" onclick="showTab('mails', this)">📤 מיילים</button>
@@ -1032,7 +1147,7 @@ app.get("/admin", requireAdmin, async (req, res) => {
           </div>
 
           <div id="tab-employees" class="tab-content active">
-            <h3>👥 ניהול עובדים</h3>
+            <h3>👥 מיילים טעונים במערכת (${totalEmployeesCount})</h3>
 
             <form method="POST" action="/admin/add-employee" class="add-employee-form">
               <input type="text" name="name" placeholder="שם עובד" required>
@@ -1041,19 +1156,22 @@ app.get("/admin", requireAdmin, async (req, res) => {
             </form>
 
             <form method="POST" action="/admin/import-csv" enctype="multipart/form-data" class="add-employee-form" style="margin-top:10px;">
-              <input type="file" name="csvfile" accept=".csv" required style="color:white;">
-              <button type="submit" style="background: linear-gradient(135deg, #059669, #047857);">📥 ייבוא CSV</button>
+              <input type="file" name="csvfile" accept=".csv,.xlsx,.xls" required style="color:white;">
+              <button type="submit" style="background: linear-gradient(135deg, #059669, #047857);">📥 ייבוא CSV / Excel</button>
             </form>
 
             <p style="font-size:12px;color:#94a3b8;margin-top:6px;">
-              קובץ CSV חייב לכלול עמודות: <strong>name</strong> ו-<strong>email</strong> או בעברית: שם, מייל
+              קובץ CSV או Excel חייב לכלול עמודות: <strong>name</strong> ו-<strong>email</strong> או בעברית: <strong>שם</strong>, <strong>מייל</strong>.
             </p>
 
-            <table>
+            <input type="text" id="employeeSearch" placeholder="🔍 חפש במיילים הטעונים..." onkeyup="searchEmployeeTable()" style="margin:10px 0 15px;">
+
+            <table id="emp-table">
               <tr>
                 <th>שם</th>
                 <th>מייל</th>
                 <th>פעיל</th>
+                <th>נטען בתאריך</th>
                 <th>פעולות</th>
               </tr>
               ${employeeRows}
@@ -1188,6 +1306,19 @@ app.get("/admin", requireAdmin, async (req, res) => {
 
             var input = inputEl.value.toLowerCase();
             var rows = document.querySelectorAll("#reg-table tr");
+
+            rows.forEach(function(row, i) {
+              if (i === 0) return;
+              row.style.display = row.innerText.toLowerCase().indexOf(input) !== -1 ? "" : "none";
+            });
+          }
+
+          function searchEmployeeTable() {
+            var inputEl = document.getElementById("employeeSearch");
+            if (!inputEl) return;
+
+            var input = inputEl.value.toLowerCase();
+            var rows = document.querySelectorAll("#emp-table tr");
 
             rows.forEach(function(row, i) {
               if (i === 0) return;
