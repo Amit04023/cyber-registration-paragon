@@ -219,34 +219,49 @@ function parseEmployeesFile(file) {
   throw new Error("סוג קובץ לא נתמך. יש להעלות CSV, XLSX או XLS בלבד.");
 }
 
+function normalizeRowKeys(row) {
+  const normalized = {};
+
+  Object.keys(row || {}).forEach((key) => {
+    const cleanKey = String(key || "").trim();
+    normalized[cleanKey] = row[key];
+  });
+
+  return normalized;
+}
+
 function getEmployeeNameFromRow(row) {
+  const r = normalizeRowKeys(row);
+
   return String(
-    row.name ||
-      row.Name ||
-      row["שם"] ||
-      row["שם מלא"] ||
-      row["שם עובד"] ||
-      row["עובד"] ||
-      row.full_name ||
-      row.FullName ||
-      row["Full Name"] ||
-      ""
+    r.name ||
+    r.Name ||
+    r["שם"] ||
+    r["שם מלא"] ||
+    r["שם עובד"] ||
+    r["עובד"] ||
+    r.full_name ||
+    r.FullName ||
+    r["Full Name"] ||
+    ""
   ).trim();
 }
 
 function getEmployeeEmailFromRow(row) {
+  const r = normalizeRowKeys(row);
+
   return normalizeEmail(
-    row.email ||
-      row.Email ||
-      row["מייל"] ||
-      row["אימייל"] ||
-      row["מייל עובד"] ||
-      row["אימייל עובד"] ||
-      row.mail ||
-      row.Mail ||
-      row["Email Address"] ||
-      row["כתובת מייל"] ||
-      ""
+    r.email ||
+    r.Email ||
+    r["מייל"] ||
+    r["אימייל"] ||
+    r["מייל עובד"] ||
+    r["אימייל עובד"] ||
+    r.mail ||
+    r.Mail ||
+    r["Email Address"] ||
+    r["כתובת מייל"] ||
+    ""
   );
 }
 
